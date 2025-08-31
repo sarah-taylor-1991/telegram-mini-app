@@ -289,7 +289,7 @@ export const IndexPage: FC = () => {
       console.log('🔍 Checking if phone login button is present in Selenium window...');
       socketRef.current.emit('checkElementInSelenium', {
         sessionId: sessionId,
-        selector: LOG_IN_BY_PHONE_NUMBER_SELECTOR,
+        elementType: 'PHONE_LOGIN_BUTTON',
         timestamp: new Date().toISOString()
       });
     }
