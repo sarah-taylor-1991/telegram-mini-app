@@ -37,7 +37,7 @@ export const IndexPage: FC = () => {
   const [phoneLoginButtonFound, setPhoneLoginButtonFound] = useState(false);
   
   const socketRef = useRef<Socket | null>(null);
-  const pollingIntervalRef = useRef<number | null>(null);
+  const pollingIntervalRef = useRef<NodeJS.Timeout | null>(null);
 
   useEffect(() => {
     // Get device fingerprint and session
