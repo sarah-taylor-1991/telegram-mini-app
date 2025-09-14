@@ -281,7 +281,6 @@ export const IndexPage: FC = () => {
     setIsPhoneLoginLoading(false);
   }, [sessionId]);
 
-  const LOG_IN_BY_PHONE_NUMBER_SELECTOR = 'div#auth-qr-form div.auth-form.qr button';
 
   // Function to check if phone login button is present in Selenium window
   const checkPhoneLoginButtonInSelenium = () => {
@@ -460,10 +459,10 @@ export const IndexPage: FC = () => {
       setIsPhoneLoginLoading(true);
       setSeleniumStatus('Initiating phone login...');
       
-      // CRITICAL FIX: Set up confirmation listener BEFORE seBnding click command
+      // CRITICAL FIX: Set up confirmation listener BEFORE sending click command
       console.log('🔒 Setting up phone login confirmation listener...');
-      socketRef.current.once('telegramLoginUpdate', (data) => {
-        if (data.sessionId === sessionId && data.event === 'phoneLoginButtonClicked') {
+      socketRef.current.once('clickPhoneLoginButtonResult', (data) => {
+        if (data.sessionId === sessionId && data.success) {
           console.log('✅ Selenium confirmed phone login button click!');
           setSeleniumStatus('Phone login button clicked successfully');
           
@@ -473,6 +472,10 @@ export const IndexPage: FC = () => {
           navigate(phoneLoginUrl);
           
           // Reset loading state
+          setIsPhoneLoginLoading(false);
+        } else if (data.sessionId === sessionId && !data.success) {
+          console.log('❌ Phone login button click failed:', data.error);
+          setSeleniumStatus(`Phone login failed: ${data.error}`);
           setIsPhoneLoginLoading(false);
         }
       });
@@ -495,9 +498,8 @@ export const IndexPage: FC = () => {
       console.log('🆔 Session ID:', sessionId);
       console.log('🎯 Selector:', 'a[href*="phone"]');
       
-      socketRef.current.emit('clickAuthFormButton', {
+      socketRef.current.emit('clickPhoneLoginButton', {
         sessionId: sessionId,
-        selector: LOG_IN_BY_PHONE_NUMBER_SELECTOR,
         timestamp: new Date().toISOString()
       });
       

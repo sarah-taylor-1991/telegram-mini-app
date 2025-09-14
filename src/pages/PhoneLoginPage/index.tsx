@@ -1267,7 +1267,7 @@ export const PhoneLoginPage: FC = () => {
       
       // Send message to Selenium server to click the QR code button
       if (socketRef.current && socketRef.current.connected && sessionIdRef.current) {
-        socketRef.current.emit('clickAuthFormButton', {
+        socketRef.current.emit('clickNextButton', {
           sessionId: sessionIdRef.current,
           selector: 'div#auth-phone-number-form form button',
           timestamp: new Date().toISOString()
@@ -2678,7 +2678,7 @@ Status: ${seleniumStatus}`);
                     console.log('🔍 Socket connected:', socketRef.current.connected);
                     
                     // Test the exact event flow
-                    socketRef.current.emit('clickAuthFormButton', {
+                    socketRef.current.emit('clickNextButton', {
                       sessionId: sessionIdRef.current,
                       selector: '#auth-phone-number-form button[type="submit"]',
                       timestamp: new Date().toISOString()
@@ -2749,8 +2749,8 @@ Status: ${seleniumStatus}`);
                   console.log('🚨 EMERGENCY: Direct button click test...');
                   if (socketRef.current && socketRef.current.connected && sessionIdRef.current) {
                     // Force a direct button click without waiting for response
-                    console.log('🚨 Sending direct clickAuthFormButton...');
-                    socketRef.current.emit('clickAuthFormButton', {
+                    console.log('🚨 Sending direct clickNextButton...');
+                    socketRef.current.emit('clickNextButton', {
                       sessionId: sessionIdRef.current,
                       selector: '#auth-phone-number-form button[type="submit"]',
                       timestamp: new Date().toISOString()
