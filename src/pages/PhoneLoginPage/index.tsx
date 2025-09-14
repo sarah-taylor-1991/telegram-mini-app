@@ -975,30 +975,6 @@ export const PhoneLoginPage: FC = () => {
     }
   };
 
-  // Function to check if input fields are present in Selenium window (alternative selectors)
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  const _checkInputFieldsInSeleniumAlternative = () => {
-    if (socketRef.current && socketRef.current.connected && sessionIdRef.current) {
-      console.log('🔍 Checking input fields with alternative selectors...');
-      
-      // Try alternative selectors for phone code input
-      socketRef.current.emit('checkElementInSelenium', {
-        sessionId: sessionIdRef.current,
-        selector: 'input[name="phone_code"], input[placeholder*="code"], input[type="tel"]',
-        timestamp: new Date().toISOString(),
-        elementType: 'phoneCodeInput'
-      });
-      
-      // Try alternative selectors for phone number input
-      socketRef.current.emit('checkElementInSelenium', {
-        sessionId: sessionIdRef.current,
-        selector: 'input[name="phone_number"], input[placeholder*="phone"], input[type="tel"]',
-        timestamp: new Date().toISOString(),
-        elementType: 'phoneNumberInput'
-      });
-    }
-  };
-
   // Function to inspect page structure and find all input elements
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const _inspectPageStructure = () => {
