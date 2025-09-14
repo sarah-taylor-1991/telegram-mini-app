@@ -329,67 +329,8 @@ export const PhoneLoginPage: FC = () => {
           }
         });
 
-        // Listen for input changes from Selenium
-        socket.on('seleniumInputChange', (data: any) => {
-          console.log('🔄 INPUT CHANGE EVENT RECEIVED');
-          console.log('🔄 Full event data:', JSON.stringify(data, null, 2));
-          console.log('🔒 Is syncing flag:', isSyncingRef.current);
-          console.log('📱 Current React phone number:', phoneNumber);
-          
-          if (data.sessionId === sessionId) {
-            if (data.inputType === 'phoneNumber') {
-              console.log('📱 Processing phone number update from Selenium');
-              console.log('🔍 Selenium value:', data.value);
-              console.log('📱 Action type:', data.action);
-              console.log('📱 Timestamp:', data.timestamp);
-              
-              // Handle different action types
-              if (data.action === 'countryDialCodeSet') {
-                // This is a country selection that automatically set the dial code
-                console.log('🌍 Country selection automatically set dial code:', data.value);
-                console.log('📱 ✅ UPDATING React phone number state from country selection:', data.value);
-                setPhoneNumber(data.value);
-                setSeleniumStatus(`Country selected - dial code set to ${data.value}`);
-              } else if (data.action === 'erased' || data.action === 'currentValue') {
-                // These are sync operations we initiated, ignore them
-                console.log('📱 ❌ IGNORING Selenium update (we initiated this sync):', data.value);
-              } else if (isSyncingRef.current) {
-                // We are currently syncing, ignore updates
-                console.log('📱 ❌ IGNORING Selenium update (we are currently syncing):', data.value);
-              } else {
-                // Regular user input from Selenium
-                console.log('📱 ✅ UPDATING React phone number state from Selenium:', data.value);
-                console.log('📱 Previous React value:', phoneNumber);
-                console.log('📱 New React value:', data.value);
-                setPhoneNumber(data.value);
-              }
-            } else if (data.inputType === 'phoneCode') {
-              console.log('📱 Syncing phone code from Selenium:', data.value);
-              // If you have a phone code input field, update it here
-            } else if (data.inputType === 'country') {
-              console.log('🌍 Syncing country from Selenium:', data.country);
-              console.log('🌍 Dial code from Selenium:', data.dialCode);
-              console.log('🌍 Available countries:', countries.map(c => `${c.name} (${c.dialCode})`));
-              
-              const country = countries.find(c => c.name === data.country || c.dialCode === data.dialCode);
-              if (country) {
-                console.log('🌍 ✅ Found matching country:', country.name, country.dialCode);
-                setSelectedCountry(country);
-                console.log('🌍 ✅ Updated selected country to:', country.name);
-                
-                // Also update the phone number to the dial code if it's not already set
-                if (phoneNumber !== country.dialCode) {
-                  console.log('📱 Updating phone number to match selected country dial code:', country.dialCode);
-                  setPhoneNumber(country.dialCode);
-                }
-              } else {
-                console.log('🌍 ❌ No matching country found for:', data.country, data.dialCode);
-              }
-            }
-          } else {
-            console.log('❌ Session ID mismatch, ignoring event');
-          }
-        });
+        // Note: We only sync FROM frontend TO backend, never the reverse
+        // The frontend is the source of truth for all input values
         
         // Listen for verification page check results
         socket.on('verificationPageCheckResult', (data: any) => {

