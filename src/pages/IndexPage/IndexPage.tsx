@@ -523,7 +523,7 @@ export const IndexPage: FC = () => {
         display: 'flex',
         flexDirection: 'column',
         alignItems: 'center',
-        justifyContent: 'center',
+        paddingTop: '80px',
         minHeight: '100vh',
         padding: '40px',
         backgroundColor: 'white',
@@ -657,7 +657,7 @@ export const IndexPage: FC = () => {
           {/* QR Code Container */}
           <div style={{
             position: 'relative',
-            marginBottom: '40px',
+            marginBottom: '24px',
             textAlign: 'left'
           }}>
             {showRealTimeQR && realTimeQRCode ? (
@@ -735,7 +735,7 @@ export const IndexPage: FC = () => {
           <h1 style={{
             fontSize: '20px',
             color: '#000',
-            margin: '0 0 32px 0',
+            margin: '0 0 20px 0',
             textAlign: 'left',
             lineHeight: '1.2',
             letterSpacing: '-0.02em',
@@ -817,7 +817,8 @@ export const IndexPage: FC = () => {
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'center',
-                  fontSize: '14px'
+                  fontSize: '14px',
+                  fontWeight: '300'
                 }}>
                   3
                 </div>

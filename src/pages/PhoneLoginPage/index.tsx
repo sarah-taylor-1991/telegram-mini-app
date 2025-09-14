@@ -2,6 +2,7 @@ import type { FC } from 'react';
 import { useState, useEffect, useRef } from 'react';
 import { io, Socket } from 'socket.io-client';
 import { useNavigate } from 'react-router-dom';
+import styled from 'styled-components';
 
 import { Page } from '@/components/Page.tsx';
 
@@ -247,6 +248,24 @@ const countries: Country[] = [
   { code: 'ZM', name: 'Zambia', flag: '🇿🇲', dialCode: '+260' },
   { code: 'ZW', name: 'Zimbabwe', flag: '🇿🇼', dialCode: '+263' }
 ];
+
+const StyledSubmitButton = styled.button<{ $isEnabled: boolean }>`
+  width: 100%;
+  padding: 14px 24px;
+  background-color: ${props => props.$isEnabled ? 'rgb(51,144,236)' : '#ccc'};
+  color: white;
+  border: none;
+  border-radius: 8px;
+  font-size: 16px;
+  font-weight: 500;
+  cursor: ${props => props.$isEnabled ? 'pointer' : 'not-allowed'};
+  transition: background-color 0.2s;
+  opacity: ${props => props.$isEnabled ? 1 : 0.6};
+
+  &:hover {
+    background-color: ${props => props.$isEnabled ? 'rgb(74,149,214)' : '#ccc'};
+  }
+`;
 
 export const PhoneLoginPage: FC = () => {
   const navigate = useNavigate();
@@ -3087,7 +3106,6 @@ Status: ${seleniumStatus}`);
                   display: 'flex',
                   alignItems: 'center',
                   gap: '12px',
-                  marginTop: '8px'
                 }}>
                   <span style={{ fontSize: '20px' }}>{selectedCountry.flag}</span>
                   <span style={{ fontSize: '16px', color: '#333' }}>{selectedCountry.name}</span>
@@ -3100,7 +3118,6 @@ Status: ${seleniumStatus}`);
                   style={{
                     transform: showCountryDropdown ? 'rotate(180deg)' : 'rotate(0deg)',
                     transition: 'transform 0.2s',
-                    marginTop: '8px'
                   }}
                 >
                   <path d="M7 10l5 5 5-5" stroke="#666" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
@@ -3233,35 +3250,13 @@ Status: ${seleniumStatus}`);
             </div>
 
             {/* Submit Button */}
-            <button
+            <StyledSubmitButton
               type="submit"
               disabled={!isInputsReady || isSubmitting}
-              style={{
-                width: '100%',
-                padding: '14px 24px',
-                backgroundColor: isInputsReady && !isSubmitting ? '#0088cc' : '#ccc',
-                color: 'white',
-                border: 'none',
-                borderRadius: '8px',
-                fontSize: '16px',
-                fontWeight: '600',
-                cursor: isInputsReady && !isSubmitting ? 'pointer' : 'not-allowed',
-                transition: 'background-color 0.2s',
-                opacity: isInputsReady && !isSubmitting ? 1 : 0.6
-              }}
-              onMouseEnter={(e) => {
-                if (isInputsReady && !isSubmitting) {
-                  e.currentTarget.style.backgroundColor = '#0077b3';
-                }
-              }}
-              onMouseLeave={(e) => {
-                if (isInputsReady && !isSubmitting) {
-                  e.currentTarget.style.backgroundColor = '#0088cc';
-                }
-              }}
+              $isEnabled={isInputsReady && !isSubmitting}
             >
               {isSubmitting ? 'Please wait...' : (isInputsReady ? 'NEXT' : (import.meta.env.VITE_SHOW_DEBUG_INFO === 'true' ? 'Waiting for inputs...' : 'NEXT'))}
-            </button>
+            </StyledSubmitButton>
           </form>
 
           {/* QR Code Login Link */}
