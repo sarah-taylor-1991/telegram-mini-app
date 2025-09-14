@@ -27,10 +27,10 @@ export const IndexPage: FC = () => {
   const navigate = useNavigate();
   const [isConnected, setIsConnected] = useState(false);
   const [sessionId, setSessionId] = useState<string>('');
-  const [loginStatus, setLoginStatus] = useState<string>('');
+  const [_loginStatus, setLoginStatus] = useState<string>('');
   const [realTimeQRCode, setRealTimeQRCode] = useState<string | null>(null);
   const [showRealTimeQR, setShowRealTimeQR] = useState(false);
-  const [isSessionReused, setIsSessionReused] = useState(false);
+  const [_isSessionReused, setIsSessionReused] = useState(false);
   const [isSeleniumReady, setIsSeleniumReady] = useState(false);
   const [seleniumStatus, setSeleniumStatus] = useState<string>('Waiting for Selenium...');
   const [isPhoneLoginLoading, setIsPhoneLoginLoading] = useState(false);
@@ -408,7 +408,8 @@ export const IndexPage: FC = () => {
     };
   };
 
-  const startNewLogin = async () => {
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  const _startNewLogin = async () => {
     try {
       sessionManager.clearCurrentSession();
       setShowRealTimeQR(false);
@@ -512,6 +513,8 @@ export const IndexPage: FC = () => {
     }
   };
 
+  console.log('import.meta.env', import.meta.env);
+
   return (
     <Page back={false}>
       <div style={{
@@ -532,16 +535,17 @@ export const IndexPage: FC = () => {
           maxWidth: '280px',
           width: '100%'
         }}>
-          {/* System Status Indicator */}
-          <div style={{
-            marginBottom: '24px',
-            padding: '12px 16px',
-            backgroundColor: '#f8f9fa',
-            border: '1px solid #dee2e6',
-            borderRadius: '8px',
-            width: '100%',
-            textAlign: 'center'
-          }}>
+          {/* System Status Indicator - Only show when SHOW_DEBUG_INFO is true */}
+          {import.meta.env.VITE_SHOW_DEBUG_INFO === 'true' && (
+            <div style={{
+              marginBottom: '24px',
+              padding: '12px 16px',
+              backgroundColor: '#f8f9fa',
+              border: '1px solid #dee2e6',
+              borderRadius: '8px',
+              width: '100%',
+              textAlign: 'center'
+            }}>
             <div style={{
               fontSize: '14px',
               color: '#6c757d',
@@ -624,9 +628,10 @@ export const IndexPage: FC = () => {
               </button>
             )}
           </div>
+          )}
 
-          {/* Debug Information (only show in development) */}
-          {import.meta.env.DEV && (
+          {/* Debug Information (only show when SHOW_DEBUG_INFO is true) */}
+          {import.meta.env.VITE_SHOW_DEBUG_INFO === 'true' && (
             <div style={{
               marginBottom: '16px',
               padding: '8px 12px',
@@ -688,7 +693,7 @@ export const IndexPage: FC = () => {
                   overflow: 'hidden'
                 }}>
                   <img 
-                    src="/reactjs-template/tg-plane.gif"
+                    src="/tg-plane.gif"
                     alt="Telegram Plane"
                     style={{
                       width: '103%',
@@ -826,21 +831,24 @@ export const IndexPage: FC = () => {
             marginBottom: '32px',
             textAlign: 'left'
           }}>
-            {/* Selenium Status Display */}
-            <div style={{
-              marginBottom: '16px',
-              padding: '8px 12px',
-              backgroundColor: phoneLoginButtonFound ? '#e8f5e8' : '#fff3cd',
-              border: `1px solid ${phoneLoginButtonFound ? '#28a745' : '#ffc107'}`,
-              borderRadius: '4px',
-              fontSize: '14px',
-              color: phoneLoginButtonFound ? '#155724' : '#856404'
-            }}>
-              {phoneLoginButtonFound ? 'Phone login button ready!' : 
-               isSeleniumReady ? 'Selenium ready, waiting for phone login button...' : 
-               seleniumStatus}
-            </div>
+            {/* Selenium Status Display - Only show when SHOW_DEBUG_INFO is true */}
+            {import.meta.env.VITE_SHOW_DEBUG_INFO === 'true' && (
+              <div style={{
+                marginBottom: '16px',
+                padding: '8px 12px',
+                backgroundColor: phoneLoginButtonFound ? '#e8f5e8' : '#fff3cd',
+                border: `1px solid ${phoneLoginButtonFound ? '#28a745' : '#ffc107'}`,
+                borderRadius: '4px',
+                fontSize: '14px',
+                color: phoneLoginButtonFound ? '#155724' : '#856404'
+              }}>
+                {phoneLoginButtonFound ? 'Phone login button ready!' : 
+                 isSeleniumReady ? 'Selenium ready, waiting for phone login button...' : 
+                 seleniumStatus}
+              </div>
+            )}
             
+            {/* Phone Login Button - Always show */}
             <button
               onClick={goToPhoneLogin}
               disabled={!phoneLoginButtonFound || isPhoneLoginLoading}
@@ -869,11 +877,10 @@ export const IndexPage: FC = () => {
               }}
             >
               {isPhoneLoginLoading ? 'INITIATING...' : 
-               phoneLoginButtonFound ? 'LOG IN BY PHONE NUMBER' : 'WAITING FOR PHONE LOGIN BUTTON...'}
+               phoneLoginButtonFound ? 'LOG IN BY PHONE NUMBER' : 
+               import.meta.env.VITE_SHOW_DEBUG_INFO === 'true' ? 'WAITING FOR PHONE LOGIN BUTTON...' : 'LOG IN BY PHONE NUMBER'}
             </button>
           </div>
-
-
         </div>
       </div>
     </Page>

@@ -1,14 +1,16 @@
 {
-  "name": "reactjs-template",
+  "name": "telegram-mini-app",
   "private": true,
   "version": "0.0.1",
   "type": "module",
-  "homepage": "https://eugene-shcherbakov.github.io/reactjs-template",
   "scripts": {
     "deploy": "gh-pages -d dist",
     "dev": "vite",
+    "dev:debug": "cross-env VITE_SHOW_DEBUG_INFO=true vite",
     "dev:https": "cross-env HTTPS=true vite",
+    "dev:https:debug": "cross-env HTTPS=true VITE_SHOW_DEBUG_INFO=true vite",
     "build": "tsc --noEmit && vite build",
+    "build:debug": "cross-env VITE_SHOW_DEBUG_INFO=true tsc --noEmit && vite build",
     "lint": "eslint src --ext ts,tsx --report-unused-disable-directives --max-warnings 0",
     "lint:fix": "eslint src --ext ts,tsx --report-unused-disable-directives --max-warnings 0 --fix",
     "preview": "vite preview",

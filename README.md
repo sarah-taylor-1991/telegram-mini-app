@@ -29,8 +29,11 @@ npm install
 This project contains the following scripts:
 
 - `dev`. Runs the application in development mode.
+- `dev:debug`. Runs the application in development mode with debug information enabled.
 - `dev:https`. Runs the application in development mode using locally created valid SSL-certificates.
+- `dev:https:debug`. Runs the application in development mode with HTTPS and debug information enabled.
 - `build`. Builds the application for production.
+- `build:debug`. Builds the application for production with debug information enabled.
 - `lint`. Runs [eslint](https://eslint.org/) to ensure the code quality meets
   the required standards.
 - `deploy`. Deploys the application to GitHub Pages.
@@ -40,6 +43,30 @@ To run a script, use the `npm run` command:
 ```Bash
 npm run {script}
 # Example: npm run build
+```
+
+## Environment Variables
+
+The application supports the following environment variables:
+
+### VITE_SHOW_DEBUG_INFO
+
+Controls whether debug information is displayed in the UI. This includes debug buttons, status indicators, and development tools.
+
+- **Default**: `false` (debug info hidden)
+- **Usage**: Set to `'true'` to enable debug information
+- **Example**: `VITE_SHOW_DEBUG_INFO=true npm run dev`
+
+```Bash
+# Show debug information
+VITE_SHOW_DEBUG_INFO=true npm run dev
+
+# Hide debug information (default)
+VITE_SHOW_DEBUG_INFO=false npm run dev
+
+# Or use the convenient npm scripts
+npm run dev:debug    # Shows debug info
+npm run dev          # Hides debug info (default)
 ```
 
 ## Create Bot and Mini App
@@ -71,10 +98,10 @@ After this, you will see a similar message in your terminal:
 ```bash
 VITE v5.2.12  ready in 237 ms
 
-➜  Local:   https://localhost:5173/reactjs-template
-➜  Network: https://172.18.16.1:5173/reactjs-template
-➜  Network: https://172.19.32.1:5173/reactjs-template
-➜  Network: https://192.168.0.171:5173/reactjs-template
+➜  Local:   https://localhost:5173/telegram-mini-app
+➜  Network: https://172.18.16.1:5173/telegram-mini-app
+➜  Network: https://172.19.32.1:5173/telegram-mini-app
+➜  Network: https://192.168.0.171:5173/telegram-mini-app
 ➜  press h + enter to show help
 ```
 
@@ -82,7 +109,7 @@ Here, you can see the `Local` link, available locally, and `Network` links
 accessible to all devices in the same network with the current device.
 
 To view the application, you need to open the `Local`
-link (`https://localhost:5173/reactjs-template` in this example) in your
+link (`https://localhost:5173/telegram-mini-app` in this example) in your
 browser:
 
 ![Application](assets/application.png)

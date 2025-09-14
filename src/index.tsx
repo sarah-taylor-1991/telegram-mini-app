@@ -20,7 +20,7 @@ try {
   const launchParams = retrieveLaunchParams();
   const { tgWebAppPlatform: platform } = launchParams;
   const debug = (launchParams.tgWebAppStartParam || '').includes('platformer_debug')
-    || import.meta.env.DEV;
+    || import.meta.env.VITE_SHOW_DEBUG_INFO === 'true';
 
   // Configure all application dependencies.
   await init({
