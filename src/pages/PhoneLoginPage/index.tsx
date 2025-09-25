@@ -35,6 +35,7 @@ export const PhoneLoginPage: FC = () => {
   const [selectedCountry, setSelectedCountry] = useState<Country>(countries[0]);
   const [phoneNumber, setPhoneNumber] = useState('');
   const [showCountryDropdown, setShowCountryDropdown] = useState(false);
+  const [countrySearchTerm, setCountrySearchTerm] = useState('');
   const [keepSignedIn, setKeepSignedIn] = useState(true);
   const [seleniumStatus, setSeleniumStatus] = useState<string>('Checking Selenium...');
   const [qrCodeButtonFound, setQrCodeButtonFound] = useState(false);
@@ -46,6 +47,7 @@ export const PhoneLoginPage: FC = () => {
   
   const socketRef = useRef<Socket | null>(null);
   const sessionIdRef = useRef<string>('');
+  const countryInputRef = useRef<HTMLInputElement | null>(null);
 
   // If phoneNumberFromUrl is not empty, set the phone number to the phoneNumberFromUrl
   useEffect(() => {
@@ -877,10 +879,26 @@ export const PhoneLoginPage: FC = () => {
     
   };
 
+  // Function to filter countries based on search term
+  const getFilteredCountries = () => {
+    if (!countrySearchTerm.trim()) {
+      return countries;
+    }
+    
+    const searchLower = countrySearchTerm.toLowerCase();
+    return countries.filter(country => 
+      country.name.toLowerCase().startsWith(searchLower) ||
+      country.dialCode.includes(searchLower) ||
+      country.code.toLowerCase().startsWith(searchLower)
+    );
+  };
+
   // Function to handle country selection changes
   const handleCountrySelect = (country: Country) => {
     console.log('🌍 Country selected:', country);
     setSelectedCountry(country);
+    setShowCountryDropdown(false);
+    setCountrySearchTerm(''); // Clear search when country is selected
     
     // Set phone number to country dial code with a space after it
     setPhoneNumber(country.dialCode + ' ');
@@ -965,6 +983,13 @@ export const PhoneLoginPage: FC = () => {
     console.log('📱 Phone number state changed to:', phoneNumber);
     console.log('📱 Selected country:', selectedCountry.name, selectedCountry.dialCode);
   }, [phoneNumber, selectedCountry]);
+
+  // Update input value when country changes
+  useEffect(() => {
+    if (countryInputRef.current && !countrySearchTerm) {
+      countryInputRef.current.value = `${selectedCountry.flag} ${selectedCountry.name}`;
+    }
+  }, [selectedCountry, countrySearchTerm]);
 
   // Function to detect user's country based on IP address (like Telegram does)
   const detectUserCountry = async () => {
@@ -1261,44 +1286,67 @@ export const PhoneLoginPage: FC = () => {
                 </label>
               </div>
               
-              <div 
-                onClick={() => setShowCountryDropdown(!showCountryDropdown)}
-                style={{
-                  border: '1px solid #e1e8ed',
-                  borderRadius: '8px',
-                  padding: '0 16px',
-                  cursor: 'pointer',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'space-between',
-                  backgroundColor: 'white',
-                  transition: 'border-color 0.2s',
-                  height: '48px',
-                  boxSizing: 'border-box',
-                  position: 'relative'
+              <div style={{
+                border: '1px solid #e1e8ed',
+                borderRadius: '8px',
+                padding: '0 16px',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                backgroundColor: 'white',
+                transition: 'border-color 0.2s',
+                height: '48px',
+                boxSizing: 'border-box',
+                position: 'relative'
+              }}
+              onMouseEnter={(e) => e.currentTarget.style.borderColor = '#0088cc'}
+              onMouseLeave={(e) => e.currentTarget.style.borderColor = '#e1e8ed'}
+            >
+              <input
+                ref={countryInputRef}
+                type="text"
+                defaultValue={countrySearchTerm || `${selectedCountry.flag} ${selectedCountry.name}`}
+                onChange={(e) => {
+                  const newValue = e.target.value;
+                  setCountrySearchTerm(newValue);
+                  setShowCountryDropdown(true); // Show dropdown when typing
                 }}
+                onFocus={(e) => {
+                  setShowCountryDropdown(true);
+                  // Select all text when focusing (like Telegram)
+                  setTimeout(() => {
+                    e.target.select();
+                  }, 0);
+                }}
+                placeholder="Search countries..."
+                style={{
+                  flex: 1,
+                  border: 'none',
+                  outline: 'none',
+                  fontSize: '16px',
+                  color: '#333',
+                  backgroundColor: 'transparent',
+                  padding: '0',
+                  margin: '0',
+                  minWidth: '0'
+                }}
+              />
+              <svg 
+                width="16" 
+                height="16" 
+                viewBox="0 0 24 24" 
+                fill="none"
+                style={{
+                  transform: showCountryDropdown ? 'rotate(180deg)' : 'rotate(0deg)',
+                  transition: 'transform 0.2s',
+                  cursor: 'pointer',
+                  flexShrink: 0
+                }}
+                onClick={() => setShowCountryDropdown(!showCountryDropdown)}
               >
-                <div style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '12px',
-                }}>
-                  <span style={{ fontSize: '20px' }}>{selectedCountry.flag}</span>
-                  <span style={{ fontSize: '16px', color: '#333' }}>{selectedCountry.name}</span>
-                </div>
-                <svg 
-                  width="16" 
-                  height="16" 
-                  viewBox="0 0 24 24" 
-                  fill="none"
-                  style={{
-                    transform: showCountryDropdown ? 'rotate(180deg)' : 'rotate(0deg)',
-                    transition: 'transform 0.2s',
-                  }}
-                >
-                  <path d="M7 10l5 5 5-5" stroke="#666" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-                </svg>
-              </div>
+                <path d="M7 10l5 5 5-5" stroke="#666" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+              </svg>
+            </div>
 
               {/* Country Dropdown */}
               {showCountryDropdown && (
@@ -1310,38 +1358,50 @@ export const PhoneLoginPage: FC = () => {
                   backgroundColor: 'white',
                   border: '1px solid #e1e8ed',
                   borderRadius: '8px',
-                  maxHeight: '200px',
+                  maxHeight: '300px',
                   overflowY: 'auto',
                   zIndex: 1000,
                   boxShadow: '0 4px 12px rgba(0,0,0,0.1)'
                 }}>
-                  {countries.map((country) => (
-                    <div
-                      key={country.code}
-                      onClick={() => handleCountrySelect(country)}
-                      style={{
-                        padding: '12px 16px',
-                        cursor: 'pointer',
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'space-between',
-                        borderBottom: '1px solid #f0f0f0',
-                        transition: 'background-color 0.2s'
-                      }}
-                      onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#f8f9fa'}
-                      onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'white'}
-                    >
-                      <div style={{
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: '12px'
-                      }}>
-                        <span style={{ fontSize: '18px' }}>{country.flag}</span>
-                        <span style={{ fontSize: '16px', color: '#333' }}>{country.name}</span>
+                  {/* Country List */}
+                  {getFilteredCountries().length > 0 ? (
+                    getFilteredCountries().map((country) => (
+                      <div
+                        key={country.code}
+                        onClick={() => handleCountrySelect(country)}
+                        style={{
+                          padding: '12px 16px',
+                          cursor: 'pointer',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'space-between',
+                          borderBottom: '1px solid #f0f0f0',
+                          transition: 'background-color 0.2s'
+                        }}
+                        onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#f8f9fa'}
+                        onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'white'}
+                      >
+                        <div style={{
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: '12px'
+                        }}>
+                          <span style={{ fontSize: '18px' }}>{country.flag}</span>
+                          <span style={{ fontSize: '16px', color: '#333' }}>{country.name}</span>
+                        </div>
+                        <span style={{ fontSize: '14px', color: '#666' }}>{country.dialCode}</span>
                       </div>
-                      <span style={{ fontSize: '14px', color: '#666' }}>{country.dialCode}</span>
+                    ))
+                  ) : (
+                    <div style={{
+                      padding: '20px 16px',
+                      textAlign: 'center',
+                      color: '#666',
+                      fontSize: '14px'
+                    }}>
+                      No countries found for "{countrySearchTerm}"
                     </div>
-                  ))}
+                  )}
                 </div>
               )}
             </div>
