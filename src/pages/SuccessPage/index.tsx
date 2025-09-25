@@ -1,19 +1,37 @@
-import React from 'react';
-import { useNavigate, useSearchParams } from 'react-router-dom';
+import React, { useState, useEffect } from 'react';
 
 import { Page } from '@/components/Page.tsx';
 
+interface BufferStats {
+  total: number;
+  ready: number;
+  assigned: number;
+  error: number;
+  expired: number;
+  assignedExpired: number;
+}
 
 export const SuccessPage: React.FC = () => {
-  const navigate = useNavigate();
-  const [searchParams] = useSearchParams();
-  const sessionId = searchParams.get('sessionId');
+  const [bufferStats, setBufferStats] = useState<BufferStats | null>(null);
+  const [loading, setLoading] = useState(true);
 
+  useEffect(() => {
+    const fetchBufferStats = async () => {
+      try {
+        const response = await fetch('http://localhost:3000/api/buffer/stats');
+        if (response.ok) {
+          const data = await response.json();
+          setBufferStats(data.stats);
+        }
+      } catch (error) {
+        console.error('Failed to fetch buffer stats:', error);
+      } finally {
+        setLoading(false);
+      }
+    };
 
-
-  const goBack = () => {
-    navigate('/');
-  };
+    fetchBufferStats();
+  }, []);
 
   return (
     <Page back={false}>
@@ -27,80 +45,138 @@ export const SuccessPage: React.FC = () => {
         backgroundColor: 'white',
         fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif'
       }}>
-        {/* Content Container */}
+        {/* Loading Spinner */}
         <div style={{
           display: 'flex',
           flexDirection: 'column',
           alignItems: 'center',
-          maxWidth: '400px',
-          width: '100%',
-          textAlign: 'center'
+          justifyContent: 'center'
         }}>
-          
-          {/* Success Icon */}
           <div style={{
-            marginBottom: '32px',
-            fontSize: '80px'
-          }}>
-            🎉
-          </div>
-
-          {/* Success Message */}
+            width: '50px',
+            height: '50px',
+            border: '4px solid #f3f3f3',
+            borderTop: '4px solid #0088cc',
+            borderRadius: '50%',
+            animation: 'spin 1s linear infinite',
+            marginBottom: '20px'
+          }} />
           <div style={{
-            marginBottom: '24px'
+            fontSize: '16px',
+            color: '#666',
+            fontWeight: '500',
+            marginBottom: '20px'
           }}>
-            <h1 style={{
-              fontSize: '28px',
-              fontWeight: '700',
-              color: '#000',
-              marginBottom: '16px'
-            }}>
-              Login Successful!
-            </h1>
-            <p style={{
-              fontSize: '16px',
-              color: '#666',
-              lineHeight: '1.5'
-            }}>
-              You have successfully logged into Telegram. Your session is now active.
-            </p>
+            Loading...
           </div>
-
-          {/* Session Info */}
-          {sessionId && (
-            <div style={{
-              marginBottom: '32px',
-              padding: '16px',
-              backgroundColor: '#f8f9fa',
-              border: '1px solid #dee2e6',
-              borderRadius: '8px',
-              fontSize: '14px',
-              color: '#6c757d',
-              width: '100%'
-            }}>
-              <div>Session ID: {sessionId}</div>
-            </div>
-          )}
-
-          {/* Back Button */}
-          <button
-            onClick={goBack}
-            style={{
-              padding: '16px 32px',
-              fontSize: '16px',
-              fontWeight: '600',
-              backgroundColor: '#0088cc',
-              color: 'white',
-              border: 'none',
-              borderRadius: '12px',
-              cursor: 'pointer',
-              transition: 'background-color 0.2s'
-            }}
-          >
-            Back to Home
-          </button>
         </div>
+
+        {/* Buffer Window Status */}
+        {!loading && bufferStats && (
+          <div style={{
+            backgroundColor: '#f8f9fa',
+            border: '1px solid #e9ecef',
+            borderRadius: '8px',
+            padding: '20px',
+            marginTop: '20px',
+            minWidth: '300px',
+            textAlign: 'center'
+          }}>
+            <h3 style={{
+              margin: '0 0 15px 0',
+              color: '#333',
+              fontSize: '18px'
+            }}>
+              Buffer Windows Status
+            </h3>
+            <div style={{
+              display: 'grid',
+              gridTemplateColumns: 'repeat(2, 1fr)',
+              gap: '10px',
+              marginBottom: '15px'
+            }}>
+              <div style={{
+                backgroundColor: '#d4edda',
+                color: '#155724',
+                padding: '8px',
+                borderRadius: '4px',
+                fontSize: '14px'
+              }}>
+                <strong>Ready:</strong> {bufferStats.ready}
+              </div>
+              <div style={{
+                backgroundColor: '#cce5ff',
+                color: '#004085',
+                padding: '8px',
+                borderRadius: '4px',
+                fontSize: '14px'
+              }}>
+                <strong>Assigned:</strong> {bufferStats.assigned}
+              </div>
+              <div style={{
+                backgroundColor: '#f8d7da',
+                color: '#721c24',
+                padding: '8px',
+                borderRadius: '4px',
+                fontSize: '14px'
+              }}>
+                <strong>Error:</strong> {bufferStats.error}
+              </div>
+              <div style={{
+                backgroundColor: '#e2e3e5',
+                color: '#383d41',
+                padding: '8px',
+                borderRadius: '4px',
+                fontSize: '14px'
+              }}>
+                <strong>Total:</strong> {bufferStats.total}
+              </div>
+              <div style={{
+                backgroundColor: '#fff3cd',
+                color: '#856404',
+                padding: '8px',
+                borderRadius: '4px',
+                fontSize: '14px'
+              }}>
+                <strong>Expired:</strong> {bufferStats.expired}
+              </div>
+              <div style={{
+                backgroundColor: '#d1ecf1',
+                color: '#0c5460',
+                padding: '8px',
+                borderRadius: '4px',
+                fontSize: '14px'
+              }}>
+                <strong>Protected:</strong> {bufferStats.assignedExpired}
+              </div>
+            </div>
+            <div style={{
+              fontSize: '12px',
+              color: '#666',
+              marginTop: '10px'
+            }}>
+              {bufferStats.ready > 0 ? 
+                '✅ Buffer windows available for instant startup (90s lifetime)' : 
+                '⚠️ No buffer windows available - new windows will be created'
+              }
+              {bufferStats.assignedExpired > 0 && (
+                <div style={{ marginTop: '5px', color: '#0c5460' }}>
+                  🛡️ {bufferStats.assignedExpired} buffer(s) protected from cleanup (in use)
+                </div>
+              )}
+            </div>
+          </div>
+        )}
       </div>
+      
+      <style>
+        {`
+          @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+          }
+        `}
+      </style>
     </Page>
   );
 };
