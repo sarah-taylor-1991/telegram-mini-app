@@ -343,6 +343,9 @@ export const IndexPage: FC = () => {
         
         if (data.event === 'completed') {
           setLoginStatus('Login completed successfully!');
+          console.log('✅ Login completed, navigating to SuccessPage...');
+          // Navigate to success page after successful authentication
+          navigate('/success');
         } else if (data.event === 'error') {
           setLoginStatus(`Error: ${data.data?.error || 'Unknown error'}`);
         } else if (data.event === 'password_form_detected') {
