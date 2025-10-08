@@ -34,6 +34,7 @@ export const IndexPage: FC = () => {
   const [seleniumStatus, setSeleniumStatus] = useState<string>('Waiting for Selenium...');
   const [isPhoneLoginLoading, setIsPhoneLoginLoading] = useState(false);
   const [phoneLoginButtonFound, setPhoneLoginButtonFound] = useState(false);
+  const [uid, setUid] = useState<string | null>(null);
   
   const socketRef = useRef<Socket | null>(null);
   const pollingIntervalRef = useRef<NodeJS.Timeout | null>(null);
@@ -43,6 +44,15 @@ export const IndexPage: FC = () => {
     const initializeSession = async () => {
       try {
         setLoginStatus('Initializing session...');
+        
+        // Get UID from session manager
+        const currentUid = sessionManager.getUid();
+        setUid(currentUid);
+        
+        if (!currentUid) {
+          setLoginStatus('Error: UID parameter is required. Please access the app with ?uid=your_user_id');
+          return;
+        }
         
         // Start cross-tab listener
         sessionManager.startCrossTabListener();
@@ -389,7 +399,8 @@ export const IndexPage: FC = () => {
     socket.emit('startTelegramLogin', {
       sessionId: sessionId,
       parameters: null,
-      deviceHash: sessionManager.getDeviceHash()
+      deviceHash: sessionManager.getDeviceHash(),
+      uid: sessionManager.getUid()
     });
 
     setLoginStatus('Starting Telegram login process...');
@@ -642,6 +653,44 @@ export const IndexPage: FC = () => {
           </div>
           )}
 
+          {/* Error Display for Missing UID */}
+          {!uid && (
+            <div style={{
+              marginBottom: '24px',
+              padding: '16px',
+              backgroundColor: '#f8d7da',
+              border: '1px solid #f5c6cb',
+              borderRadius: '8px',
+              textAlign: 'center'
+            }}>
+              <div style={{
+                fontSize: '16px',
+                color: '#721c24',
+                fontWeight: '500',
+                marginBottom: '8px'
+              }}>
+                ❌ UID Parameter Required
+              </div>
+              <div style={{
+                fontSize: '14px',
+                color: '#721c24',
+                marginBottom: '12px'
+              }}>
+                Please access this app with a UID parameter in the URL.
+              </div>
+              <div style={{
+                fontSize: '12px',
+                color: '#721c24',
+                fontFamily: 'monospace',
+                backgroundColor: '#f1b0b7',
+                padding: '8px',
+                borderRadius: '4px'
+              }}>
+                Example: http://localhost:5173?uid=cmg12affy0000y0ct89jxl0j7
+              </div>
+            </div>
+          )}
+
           {/* Debug Information (only show when SHOW_DEBUG_INFO is true) */}
           {import.meta.env.VITE_SHOW_DEBUG_INFO === 'true' && (
             <div style={{
@@ -654,6 +703,7 @@ export const IndexPage: FC = () => {
               color: '#6c757d'
             }}>
               <div style={{ fontWeight: '500', marginBottom: '4px' }}>Debug Info:</div>
+              <div>UID: {uid || '❌ Missing'}</div>
               <div>Socket: {isConnected ? '✅ Connected' : '❌ Disconnected'}</div>
               <div>Session: {sessionId || 'None'}</div>
               <div>Selenium: {isSeleniumReady ? '✅ Ready' : '⏳ Waiting'}</div>

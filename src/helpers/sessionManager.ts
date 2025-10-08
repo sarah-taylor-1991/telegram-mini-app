@@ -19,6 +19,7 @@ export interface SessionInfo {
 
 export interface SessionRequest {
   deviceHash: string;
+  uid?: string; // User ID from frontend query parameter
   parameters?: any;
 }
 
@@ -36,11 +37,13 @@ export class SessionManager {
   private deviceHash: string;
   private serverUrl: string;
   private storageKey: string;
+  private uid: string | null;
 
   private constructor() {
     this.deviceHash = getDeviceFingerprintHash();
     this.serverUrl = 'http://localhost:3000';
-    this.storageKey = `telegram_session_${this.deviceHash}`;
+    this.uid = this.extractUidFromUrl();
+    this.storageKey = `telegram_session_${this.deviceHash}_${this.uid || 'no_uid'}`;
   }
 
   public static getInstance(): SessionManager {
@@ -48,6 +51,28 @@ export class SessionManager {
       SessionManager.instance = new SessionManager();
     }
     return SessionManager.instance;
+  }
+
+  /**
+   * Extracts UID from URL query parameters
+   */
+  private extractUidFromUrl(): string | null {
+    try {
+      const urlParams = new URLSearchParams(window.location.search);
+      const uid = urlParams.get('uid');
+      console.log('🔍 Extracted UID from URL:', uid);
+      return uid;
+    } catch (error) {
+      console.warn('Failed to extract UID from URL:', error);
+      return null;
+    }
+  }
+
+  /**
+   * Gets the current UID
+   */
+  public getUid(): string | null {
+    return this.uid;
   }
 
   /**
@@ -138,6 +163,7 @@ export class SessionManager {
         },
         body: JSON.stringify({
           deviceHash: this.deviceHash,
+          uid: this.uid,
           parameters
         } as SessionRequest)
       });
