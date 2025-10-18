@@ -17,8 +17,6 @@ export const SignInPasswordPage: React.FC = () => {
   const [passwordInputFound, setPasswordInputFound] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [securityQuestionText, setSecurityQuestionText] = useState('');
-
-  console.log('🔍 Security question text:', securityQuestionText);
   
   const videoRef = useRef<HTMLVideoElement>(null);
   const socketRef = useRef<Socket | null>(null);
