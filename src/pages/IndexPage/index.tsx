@@ -303,7 +303,7 @@ export const IndexPage: FC = () => {
 
   const startTelegramLogin = (sessionId: string) => {
     // Connect to Socket.IO server
-    const socket = io('http://localhost:3000', {
+    const socket = io('http://localhost:3005', {
       transports: ['websocket', 'polling']
     });
     
@@ -331,7 +331,7 @@ export const IndexPage: FC = () => {
     const startPolling = () => {
       pollingIntervalRef.current = setInterval(async () => {
         try {
-          const response = await fetch(`http://localhost:3000/api/qr-update/${sessionId}`);
+          const response = await fetch(`http://localhost:3005/api/qr-update/${sessionId}`);
           const data = await response.json();
           
           if (data.qrCodeData) {

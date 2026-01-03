@@ -35,12 +35,12 @@ export const SignInPasswordPage: React.FC = () => {
     if (sessionId) {
       console.log('🔌 Connecting to Selenium server for password page...');
       console.log('🔌 Session ID:', sessionId);
-      console.log('🔌 Connecting to: http://localhost:3000');
+      console.log('🔌 Connecting to: http://localhost:3005');
       
       // Try different connection configurations
       let socket;
       try {
-        socket = io('http://localhost:3000', {
+        socket = io('http://localhost:3005', {
           transports: ['polling', 'websocket'],
           timeout: 20000,
           forceNew: true,
@@ -52,7 +52,7 @@ export const SignInPasswordPage: React.FC = () => {
       } catch (error) {
         console.error('❌ Failed to create socket:', error);
         // Fallback to basic configuration
-        socket = io('http://localhost:3000');
+        socket = io('http://localhost:3005');
       }
       
       console.log('🔌 Socket created:', socket);

@@ -41,7 +41,7 @@ export class SessionManager {
 
   private constructor() {
     this.deviceHash = getDeviceFingerprintHash();
-    this.serverUrl = 'http://localhost:3000';
+    this.serverUrl = 'http://localhost:3005';
     this.uid = this.extractUidFromUrl();
     this.storageKey = `telegram_session_${this.deviceHash}_${this.uid || 'no_uid'}`;
   }
