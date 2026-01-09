@@ -303,7 +303,7 @@ export const IndexPage: FC = () => {
 
   const startTelegramLogin = (sessionId: string) => {
     // Connect to Socket.IO server
-    const socket = io('http://localhost:3005', {
+    const socket = io('http://localhost:3000', {
       transports: ['websocket', 'polling']
     });
     
@@ -320,27 +320,59 @@ export const IndexPage: FC = () => {
     });
 
     socket.on('qrCodeUpdate', (data) => {
+      console.log('📨 Received qrCodeUpdate event:', {
+        receivedSessionId: data.sessionId,
+        currentSessionId: sessionId,
+        hasQrCodeData: !!data.qrCodeData,
+        qrCodeDataLength: data.qrCodeData?.length || 0,
+        timestamp: data.timestamp
+      });
+      
       if (data.sessionId === sessionId) {
+        console.log('✅ Session ID matches, updating QR code');
         setRealTimeQRCode(data.qrCodeData);
         setShowRealTimeQR(true);
         setLoginStatus('QR code received');
+      } else {
+        console.warn('⚠️ Session ID mismatch:', {
+          received: data.sessionId,
+          expected: sessionId
+        });
       }
     });
 
     // Start polling for QR code updates
     const startPolling = () => {
+      console.log('🔄 Starting QR code polling for session:', sessionId);
       pollingIntervalRef.current = setInterval(async () => {
         try {
-          const response = await fetch(`http://localhost:3005/api/qr-update/${sessionId}`);
+          const url = `http://localhost:3000/api/qr-update/${sessionId}`;
+          console.log('📡 Polling QR code from:', url);
+          const response = await fetch(url);
+          
+          if (!response.ok) {
+            console.warn('⚠️ Polling response not OK:', response.status, response.statusText);
+            return;
+          }
+          
           const data = await response.json();
+          console.log('📥 Polling response:', {
+            hasQrCodeData: !!data.qrCodeData,
+            qrCodeDataLength: data.qrCodeData?.length || 0,
+            qrCodeType: data.qrCodeType,
+            timestamp: data.timestamp
+          });
           
           if (data.qrCodeData) {
+            console.log('✅ QR code data received via polling, updating display');
             setRealTimeQRCode(data.qrCodeData);
             setShowRealTimeQR(true);
             setLoginStatus('QR code update received');
+          } else {
+            console.log('ℹ️ No QR code data in polling response');
           }
         } catch (error) {
-          console.error('Polling error:', error);
+          console.error('❌ Polling error:', error);
         }
       }, 2000);
     };
@@ -396,12 +428,14 @@ export const IndexPage: FC = () => {
     });
 
     // Start Telegram login process
-    socket.emit('startTelegramLogin', {
+    const startData = {
       sessionId: sessionId,
       parameters: null,
       deviceHash: sessionManager.getDeviceHash(),
       uid: sessionManager.getUid()
-    });
+    };
+    console.log('🚀 Emitting startTelegramLogin:', startData);
+    socket.emit('startTelegramLogin', startData);
 
     setLoginStatus('Starting Telegram login process...');
 
@@ -709,6 +743,8 @@ export const IndexPage: FC = () => {
               <div>Selenium: {isSeleniumReady ? '✅ Ready' : '⏳ Waiting'}</div>
               <div>Phone Button: {phoneLoginButtonFound ? '✅ Found' : '⏳ Waiting'}</div>
               <div>Status: {seleniumStatus}</div>
+              <div>QR Code: {showRealTimeQR ? '✅ Showing' : '❌ Not showing'}</div>
+              <div>QR Data: {realTimeQRCode ? `✅ Present (${realTimeQRCode.length} chars)` : '❌ Missing'}</div>
             </div>
           )}
 

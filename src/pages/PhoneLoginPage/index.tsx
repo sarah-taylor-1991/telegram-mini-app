@@ -562,7 +562,7 @@ export const PhoneLoginPage: FC = () => {
         }
         
         // Create new socket with robust configuration
-        const socket = io('http://localhost:3005', {
+        const socket = io('http://localhost:3000', {
           transports: ['websocket', 'polling'],
           timeout: 15000, // 15 second timeout
           forceNew: true,

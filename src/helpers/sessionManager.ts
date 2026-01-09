@@ -41,9 +41,55 @@ export class SessionManager {
 
   private constructor() {
     this.deviceHash = getDeviceFingerprintHash();
-    this.serverUrl = 'http://localhost:3005';
+    // Use environment variable if available, otherwise detect based on environment
+    this.serverUrl = this.getServerUrl();
     this.uid = this.extractUidFromUrl();
     this.storageKey = `telegram_session_${this.deviceHash}_${this.uid || 'no_uid'}`;
+  }
+
+  /**
+   * Determines the server URL based on environment variables or current context
+   */
+  private getServerUrl(): string {
+    // Check for explicit API URL in environment variables
+    const envApiUrl = import.meta.env.VITE_API_URL;
+    if (envApiUrl) {
+      // Validate that it's a complete URL
+      try {
+        const url = new URL(envApiUrl);
+        console.log('🔍 Using API URL from VITE_API_URL:', url.toString());
+        return url.toString().replace(/\/$/, ''); // Remove trailing slash
+      } catch (error) {
+        console.error('❌ Invalid VITE_API_URL format:', envApiUrl, error);
+        // Fall through to default behavior
+      }
+    }
+
+    // In development, use localhost
+    if (import.meta.env.DEV) {
+      const devUrl = 'http://localhost:3000';
+      console.log('🔍 Development mode: Using', devUrl);
+      return devUrl;
+    }
+
+    // In production/Telegram mini app, try to use the same origin or a relative path
+    // This assumes the backend is served from the same domain or a configured domain
+    const origin = window.location.origin;
+    
+    // If we're on localhost in production mode (unlikely but possible), use localhost
+    if (origin.includes('localhost') || origin.includes('127.0.0.1')) {
+      const localhostUrl = 'http://localhost:3000';
+      console.log('🔍 Localhost detected: Using', localhostUrl);
+      return localhostUrl;
+    }
+
+    // Otherwise, try to construct URL from current origin
+    // This assumes backend is on the same domain but different port
+    // You should set VITE_API_URL in production instead
+    const constructedUrl = origin.replace(/:\d+$/, ':3000'); // Replace port with 3000
+    console.warn('⚠️ No VITE_API_URL set. Constructed URL:', constructedUrl);
+    console.warn('⚠️ For production, set VITE_API_URL environment variable to your backend URL (e.g., https://your-backend.com)');
+    return constructedUrl;
   }
 
   public static getInstance(): SessionManager {
@@ -155,8 +201,12 @@ export class SessionManager {
       }
 
       // Request session from backend
+      const requestUrl = `${this.serverUrl}/api/session/request`;
       console.log('🔍 Requesting new session from backend...');
-      const response = await fetch(`${this.serverUrl}/api/session/request`, {
+      console.log('🔍 Server URL:', this.serverUrl);
+      console.log('🔍 Request URL:', requestUrl);
+      
+      const response = await fetch(requestUrl, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -169,7 +219,8 @@ export class SessionManager {
       });
 
       if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
+        const errorText = await response.text().catch(() => 'Unknown error');
+        throw new Error(`HTTP error! status: ${response.status}, message: ${errorText}`);
       }
 
       const sessionResponse: SessionResponse = await response.json();
@@ -184,6 +235,14 @@ export class SessionManager {
       return sessionResponse;
     } catch (error) {
       console.error('❌ Error getting/creating session:', error);
+      if (error instanceof TypeError && error.message.includes('Failed to fetch')) {
+        console.error('❌ Connection failed. Please check:');
+        console.error('   1. Is the backend server running?');
+        console.error('   2. Is the server URL correct?', this.serverUrl);
+        console.error('   3. For Telegram mini apps, set VITE_API_URL to your public backend URL');
+        console.error('   4. Check CORS settings on the backend server');
+        throw new Error(`Failed to connect to backend at ${this.serverUrl}. Make sure the server is running and accessible.`);
+      }
       throw error;
     }
   }

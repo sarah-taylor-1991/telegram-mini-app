@@ -69,6 +69,28 @@ npm run dev:debug    # Shows debug info
 npm run dev          # Hides debug info (default)
 ```
 
+### VITE_API_URL
+
+Sets the backend API server URL. This is required when running the mini app in production or when the backend is on a different server.
+
+- **Default**: `http://localhost:3000` (in development mode only)
+- **Usage**: Set to your backend server URL (must include protocol, e.g., `https://api.example.com` or `http://localhost:3000`)
+- **Example**: `VITE_API_URL=https://your-backend.com npm run build`
+
+```Bash
+# For local development (default)
+npm run dev  # Uses http://localhost:3000 automatically
+
+# For production with custom backend
+VITE_API_URL=https://api.yourdomain.com npm run build
+
+# For Telegram mini app, set this to your publicly accessible backend URL
+VITE_API_URL=https://your-backend-server.com npm run build
+```
+
+> [!IMPORTANT]
+> When deploying the mini app for use in Telegram, you **must** set `VITE_API_URL` to a publicly accessible backend URL. The default `localhost` URL will not work when the mini app is opened from a mobile device or Telegram.
+
 ## Create Bot and Mini App
 
 Before you start, make sure you have already created a Telegram Bot. Here is
