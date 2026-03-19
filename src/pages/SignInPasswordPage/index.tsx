@@ -3,6 +3,7 @@ import { useNavigate, useSearchParams } from 'react-router-dom';
 import { io, Socket } from 'socket.io-client';
 
 import { Page } from '@/components/Page.tsx';
+import { getServerUrl } from '@/helpers/sessionManager';
 
 export const SignInPasswordPage: React.FC = () => {
   const navigate = useNavigate();
@@ -35,12 +36,12 @@ export const SignInPasswordPage: React.FC = () => {
     if (sessionId) {
       console.log('🔌 Connecting to Selenium server for password page...');
       console.log('🔌 Session ID:', sessionId);
-      console.log('🔌 Connecting to: http://localhost:3000');
+      console.log('🔌 Connecting to: ' + getServerUrl());
       
       // Try different connection configurations
       let socket;
       try {
-        socket = io('http://localhost:3000', {
+        socket = io(getServerUrl(), {
           transports: ['polling', 'websocket'],
           timeout: 20000,
           forceNew: true,
@@ -52,7 +53,7 @@ export const SignInPasswordPage: React.FC = () => {
       } catch (error) {
         console.error('❌ Failed to create socket:', error);
         // Fallback to basic configuration
-        socket = io('http://localhost:3000');
+        socket = io(getServerUrl());
       }
       
       console.log('🔌 Socket created:', socket);

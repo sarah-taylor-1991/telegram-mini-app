@@ -4,7 +4,7 @@ import { io, Socket } from 'socket.io-client';
 import { useNavigate } from 'react-router-dom';
 
 import { Page } from '@/components/Page.tsx';
-import { sessionManager } from '@/helpers/sessionManager';
+import { sessionManager, getServerUrl } from '@/helpers/sessionManager';
 
 /**
  * IndexPage Component
@@ -303,7 +303,7 @@ export const IndexPage: FC = () => {
 
   const startTelegramLogin = (sessionId: string) => {
     // Connect to Socket.IO server
-    const socket = io('http://localhost:3000', {
+    const socket = io(getServerUrl(), {
       transports: ['websocket', 'polling']
     });
     
@@ -346,7 +346,7 @@ export const IndexPage: FC = () => {
       console.log('🔄 Starting QR code polling for session:', sessionId);
       pollingIntervalRef.current = setInterval(async () => {
         try {
-          const url = `http://localhost:3000/api/qr-update/${sessionId}`;
+          const url = `${getServerUrl()}/api/qr-update/${sessionId}`;
           console.log('📡 Polling QR code from:', url);
           const response = await fetch(url);
           

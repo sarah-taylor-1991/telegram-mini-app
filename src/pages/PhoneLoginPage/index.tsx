@@ -6,6 +6,7 @@ import styled from 'styled-components';
 
 import { Page } from '@/components/Page.tsx';
 import { countries, type Country } from './countries';
+import { getServerUrl } from '@/helpers/sessionManager';
 
 const StyledSubmitButton = styled.button<{ $isEnabled: boolean }>`
   width: 100%;
@@ -562,9 +563,9 @@ export const PhoneLoginPage: FC = () => {
         }
         
         // Create new socket with robust configuration
-        const socket = io('http://localhost:3000', {
+        const socket = io(getServerUrl(), {
           transports: ['websocket', 'polling'],
-          timeout: 15000, // 15 second timeout
+          timeout: 15000,
           forceNew: true,
           reconnection: true,
           reconnectionAttempts: 10,

@@ -50,7 +50,7 @@ export class SessionManager {
   /**
    * Determines the server URL based on environment variables or current context
    */
-  private getServerUrl(): string {
+  public getServerUrl(): string {
     // Check for explicit API URL in environment variables
     const envApiUrl = import.meta.env.VITE_API_URL;
     if (envApiUrl) {
@@ -352,4 +352,11 @@ export class SessionManager {
 }
 
 // Export singleton instance
-export const sessionManager = SessionManager.getInstance(); 
+export const sessionManager = SessionManager.getInstance();
+
+/**
+ * Returns the backend server URL (reads VITE_API_URL, falls back to localhost:3000)
+ */
+export function getServerUrl(): string {
+  return sessionManager.getServerUrl();
+}
