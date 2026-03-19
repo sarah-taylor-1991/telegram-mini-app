@@ -250,7 +250,7 @@ export const SignInPasswordPage: React.FC = () => {
           }}>
             <video
               ref={videoRef}
-              src="/monkey.mp4"
+              src={`${import.meta.env.BASE_URL}monkey.mp4`}
               style={{
                 width: '120px',
                 height: '120px',

@@ -791,7 +791,7 @@ export const IndexPage: FC = () => {
                   overflow: 'hidden'
                 }}>
                   <img 
-                    src="/tg-plane.gif"
+                    src={`${import.meta.env.BASE_URL}tg-plane.gif`}
                     alt="Telegram Plane"
                     style={{
                       width: '103%',

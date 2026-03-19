@@ -342,7 +342,7 @@ export const VerificationCodePage: React.FC = () => {
           }}>
             <video
               ref={videoRef}
-              src="/monkey.mp4"
+              src={`${import.meta.env.BASE_URL}monkey.mp4`}
               style={{
                 width: '120px',
                 height: '120px',
@@ -462,7 +462,7 @@ export const VerificationCodePage: React.FC = () => {
               >
                 {/* Pencil icon using PNG */}
                 <img
-                  src="/pencil.png"
+                  src={`${import.meta.env.BASE_URL}pencil.png`}
                   alt="Edit"
                   style={{
                     width: '20px',

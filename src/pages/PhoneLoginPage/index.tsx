@@ -1362,7 +1362,7 @@ export const PhoneLoginPage: FC = () => {
             textAlign: 'center'
           }}>
             <img 
-              src="/telegram-logo.svg" 
+              src={`${import.meta.env.BASE_URL}telegram-logo.svg`} 
               alt="Telegram" 
               style={{
                 width: '160px',
