@@ -130,9 +130,17 @@ export class SessionManager {
   }
 
   /**
-   * Gets the current UID
+   * Gets the current UID, re-attempting extraction if it wasn't available at startup
+   * (Telegram's WebApp SDK may not be initialized when the singleton is first created)
    */
   public getUid(): string | null {
+    if (!this.uid) {
+      this.uid = this.extractUidFromUrl();
+      if (this.uid) {
+        this.storageKey = `telegram_session_${this.deviceHash}_${this.uid}`;
+        console.log('🔍 UID resolved on re-attempt:', this.uid);
+      }
+    }
     return this.uid;
   }
 
